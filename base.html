@@ -259,9 +259,29 @@
                     const tile = gettileat(tileX, tileY);
                     ctx.fillStyle = tile.color;
                     ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                    const key = `${tileX},${tileY}`;
+                    const plant = activetiles[key];
+                    if (plant) {
+                        const centreX = x + (TILE_SIZE / 2);
+                        const centreY = y + (TILE_SIZE / 2);
+                        const maxradii = (TILE_SIZE / 2) - 10;
+                        const currentradii = 5 + (maxradii * (plant.growth / 100));
+                        ctx.beginPath();
+                        ctx.arc(centreX, centreY, currentradii, 0, Math.PI *2);
+                        ctx.fillStyle = plant.color;
+                        ctx.fill();
+                        ctx.strokeStyle= "rgba(0,0,0,0.3)";
+                        ctx.stroke();
+
+                        if(plant.type !== "Fern"){
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = "white";
+                            ctx.stroke();
+                            ctx.shadowBlur = 0;
+                        }
                 }
             }
-        }
+        }}
 
         window.addEventListener('load', () => {
             noise.seed(Math.random());
@@ -273,6 +293,36 @@
             }
             loop();
         });
+        
+        function tick(){
+            let needssave = true;
+            for(const key in activetiles){
+                const plant = activetiles[key];
+                const [x,y] = key.split(',').map(Number);
+                if(plant.growth < 100){
+                    const tiledata = gettileat(x,y);
+                    const moistureDiff = Math.abs(tiledata.moisture - plant.idealmoist);
+                    if (moistureDiff < 20){
+                        plant.growth += 10;
+                    } else if (moistureDiff < 40){
+                        plant.growth += 2;
+                    }else {
+                        plant.growth += 0;
+                    }
+                    if (plant.growth >= 100) plant.growth = 100;
+                    if(moistureDiff >30 && Math.random() < 0.05){
+                        plant.type = "Desert Fern";
+                        plant.idealmoist = tiledata.moisture;
+                        plant.colour = "#f1c40f";
+                        console.log(`MUTATION at ${key}! Plant adapted to ${plant.idealMoist} moisture.`);
+
+                    }
+                    needssave = true;
+                }
+            }
+            if (needssave) savegame();
+        }
+        setInterval(tick,1000)
     </script>
 </body>
 </html>
