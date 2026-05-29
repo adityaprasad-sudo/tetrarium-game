@@ -52,7 +52,8 @@
         const ctx = canvas.getContext('2d');
         const coordsText = document.getElementById('coords');
         const hoverText = document.getElementById('hover-stats');
-        // perlin native fn i copied it, maths used in this is hard and i dont wanna deal with it rn
+
+        // perlin native fallback
         if (typeof noise === 'undefined') {
             window.noise = {
                 seed: function() {},
@@ -70,12 +71,9 @@
             };
             console.warn("Perlin CDN unreachable. Switched to native fallback generator.");
         }
-        // perlin fn above dont not touch it, its a nightmare
 
         function gettileat(tileX, tileY) {
             const scale = 0.2; 
-            
-
             const moistnoise = noise.perlin2(tileX * scale, tileY * scale);
             const sunnoise = noise.perlin2((tileX + 100) * scale, (tileY + 100) * scale);
             
@@ -89,7 +87,6 @@
             
             let rand = seededRandom(tileX, tileY);
             let type = 'Grass';
-            
             let color = '#4CAF50';
 
             if (biome === 'Desert') {
@@ -137,35 +134,48 @@
         let isDragging = false;
         let worldseed = Math.random();
         let activetiles = {};
+        
         const baseplant = {
             type: "Fern",
             growth: 0,
             idealmoist: 60,
-            colour: "#2ecc71"
+            color: "#2ecc71"
         };
+
         function savegame(){
             const saveData = {
                 cam : camera,
                 seed : worldseed,
-                titles: activetiles
+                tiles: activetiles 
             };
             localStorage.setItem('terrasave', JSON.stringify(saveData));
-            console.log("gme saved");
         }
+
         function loadgame(){
-            const savestr = JSON.parse(localStorage.getItem('terrasave'));
+            const savestr = localStorage.getItem('terrasave'); 
             if (savestr) {
-                const saveData = JSON.parse(savestr);
-                camera = savestr.cam;
-                worldseed = savestr.seed;
-                activetiles = savestr.titles;
-                console.log("gme loaded");
+                const saveData = JSON.parse(savestr); 
+                camera = saveData.cam;
+                worldseed = saveData.seed;
+                activetiles = saveData.tiles || {}; 
+                console.log("Game loaded!");
             } else {
                 worldseed = Math.random();
-                console.log("no save found");
+                console.log("No save found");
             }
             noise.seed(worldseed);
         }
+
+        window.addEventListener('load', () => {
+            loadgame();
+            resizeCanvas();
+            function loop() {
+                draw();
+                requestAnimationFrame(loop);
+            }
+            loop();
+        });
+
         let dragStart = { x: 0, y: 0 };
         let mousePos = { x: 0, y: 0 };
 
@@ -182,12 +192,11 @@
             return n - Math.floor(n);
         }
 
-        let isdrag = false;
-        let hasdrag = false;
-        let dragstrt = {x: 0, y: 0};
+        let hasdragged = false;
+        
         canvas.addEventListener('mousedown', (e) => {
             isDragging = true;
-            hasdrag = false;
+            hasdragged = false;
             dragStart = { x: e.clientX, y: e.clientY };
         });
 
@@ -203,10 +212,9 @@
 
                 dragStart = { x: e.clientX, y: e.clientY };
                 coordsText.innerText = `${Math.floor(camera.x)}, ${Math.floor(camera.y)}`;
-            }
-            if (isdrag) {
-                if (Math.abs(e.clientX - dragstrt.x) > 5 || Math.abs(e.clientY - dragstrt.y) > 5) {
-                    hasdrag = true;
+                
+                if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+                    hasdragged = true;
                 }
             }
 
@@ -221,22 +229,26 @@
 
         canvas.addEventListener('mouseup', (e) =>{ 
             isDragging = false; 
-            if(!hasdrag) {
+            if(!hasdragged) {
                 const worldX = e.clientX + camera.x;
                 const worldY = e.clientY + camera.y;
                 const tileX = Math.floor(worldX / TILE_SIZE);
                 const tileY = Math.floor(worldY / TILE_SIZE);
                 const key = `${tileX},${tileY}`;
                 const terrain = gettileat(tileX, tileY);
+                
                 if (!activetiles[key] && terrain.type !== 'Water') {
                     activetiles[key] = JSON.parse(JSON.stringify(baseplant));
-                    console.log(`Planted ${baseplant.type} at [${tileX}, ${tileY}] in ${terrain.biome} biome with moisture ${terrain.moisture}% and sunlight ${terrain.sunlight}%`);
+                    console.log(`Planted ${baseplant.type} at [${tileX}, ${tileY}]`);
                     savegame();
-                    
                 }
-                }
-            });
-        canvas.addEventListener('mouseleave', () => isDragging = false);
+            }
+        });
+
+        canvas.addEventListener('mouseleave', (e) => {
+            isDragging = false;
+            hasdragged = false;
+        });
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -259,6 +271,7 @@
                     const tile = gettileat(tileX, tileY);
                     ctx.fillStyle = tile.color;
                     ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                    
                     const key = `${tileX},${tileY}`;
                     const plant = activetiles[key];
                     if (plant) {
@@ -266,6 +279,7 @@
                         const centreY = y + (TILE_SIZE / 2);
                         const maxradii = (TILE_SIZE / 2) - 10;
                         const currentradii = 5 + (maxradii * (plant.growth / 100));
+                        
                         ctx.beginPath();
                         ctx.arc(centreX, centreY, currentradii, 0, Math.PI *2);
                         ctx.fillStyle = plant.color;
@@ -279,50 +293,44 @@
                             ctx.stroke();
                             ctx.shadowBlur = 0;
                         }
+                    }
                 }
             }
-        }}
-
-        window.addEventListener('load', () => {
-            noise.seed(Math.random());
-            resizeCanvas(); 
-            
-            function loop() {
-                draw();
-                requestAnimationFrame(loop);
-            }
-            loop();
-        });
+        }
         
         function tick(){
-            let needssave = true;
+            let needssave = false;
             for(const key in activetiles){
                 const plant = activetiles[key];
                 const [x,y] = key.split(',').map(Number);
+                
                 if(plant.growth < 100){
                     const tiledata = gettileat(x,y);
                     const moistureDiff = Math.abs(tiledata.moisture - plant.idealmoist);
+                    
                     if (moistureDiff < 20){
                         plant.growth += 10;
                     } else if (moistureDiff < 40){
                         plant.growth += 2;
-                    }else {
+                    } else {
                         plant.growth += 0;
                     }
+                    
                     if (plant.growth >= 100) plant.growth = 100;
-                    if(moistureDiff >30 && Math.random() < 0.05){
+                    
+                    if(moistureDiff > 30 && Math.random() < 0.05){
                         plant.type = "Desert Fern";
                         plant.idealmoist = tiledata.moisture;
-                        plant.colour = "#f1c40f";
-                        console.log(`MUTATION at ${key}! Plant adapted to ${plant.idealMoist} moisture.`);
-
+                        plant.color = "#f1c40f"; 
+                        console.log(`MUTATION at ${key}!`);
                     }
-                    needssave = true;
+                    needssave = true; 
                 }
             }
             if (needssave) savegame();
         }
-        setInterval(tick,1000)
+        
+        setInterval(tick, 1000);
     </script>
 </body>
 </html>
