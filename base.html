@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tera</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; 
+            background-color: #2c3e50;
+            font-family: monospace;
+        }
+
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        #uilayer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="uilayer">
+        Camera: <span id="coords">0, 0</span><br>
+        Tile Stats: <span id="hover-stats">Hover over a tile</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/perlin-js/1.0.0/perlin.js"></script>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const coordsText = document.getElementById('coords');
+        const hoverText = document.getElementById('hover-stats');
+        // perlin native fn i copied it, maths used in this is hard and i dont wanna deal with it rn
+        if (typeof noise === 'undefined') {
+            window.noise = {
+                seed: function() {},
+                perlin2: function(x, y) {
+                    let X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+                    x -= Math.floor(x); y -= Math.floor(y);
+                    let u = x * x * x * (x * (x * 6 - 15) + 10), v = y * y * y * (y * (y * 6 - 15) + 10);
+                    const n = (i, j) => {
+                        let s = Math.sin((i & 255) * 12.9898 + (j & 255) * 78.233) * 43758.5453123;
+                        return s - Math.floor(s);
+                    };
+                    let a = n(X, Y), b = n(X + 1, Y), c = n(X, Y + 1), d = n(X + 1, Y + 1);
+                    return (a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v) * 2 - 1;
+                }
+            };
+            console.warn("Perlin CDN unreachable. Switched to native fallback generator.");
+        }
+        // perlin fn above dont not touch it, its a nightmare
+
+        function gettileat(tileX, tileY) {
+            const scale = 0.2; 
+            
+
+            const moistnoise = noise.perlin2(tileX * scale, tileY * scale);
+            const sunnoise = noise.perlin2((tileX + 100) * scale, (tileY + 100) * scale);
+            
+            let moisture = Math.floor((moistnoise + 1) * 50);
+            const sunlight = Math.floor((sunnoise + 1) * 50);
+            let biome = 'Plains';
+            
+            if (moisture < 25 && sunlight > 70) biome = 'Desert';
+            if (moisture < 40 && sunlight < 40) biome = 'Tundra';
+            if (moisture > 70 && sunlight > 70) biome = 'Rainforest';
+            
+            let rand = seededRandom(tileX, tileY);
+            let type = 'Grass';
+            
+            let color = '#4CAF50';
+
+            if (biome === 'Desert') {
+               type = (rand < 0.85) ? 'Sand' : 'Stone';
+               color = (type === 'Sand') ? '#E6C280' : '#7F8C8D';
+               if (type === 'Sand') {
+                const maxmoist = 20;
+                const minmoist = 2;
+                const range = maxmoist - minmoist + 1;
+                moisture = Math.floor(rand * range) + minmoist;
+               }
+               else {
+                const maxmoist1 = 15;
+                const minmoist1 = 5;
+                const range = maxmoist1 - minmoist1 + 1;
+                moisture = Math.floor(rand * range) + minmoist1;
+               }
+            } else if (biome === 'Tundra') {
+               type = (rand < 0.65) ? 'Snow' : 'Ice';
+               color = (type === 'Snow') ? '#F2F4F4' : '#AED6F1';
+               if (type === 'Snow') {
+                const maxmoist = 100;
+                const minmoist = 90;
+                const range = maxmoist - minmoist + 1;
+                moisture = Math.floor(rand * range) + minmoist;
+               }
+               else {
+                const maxmoist1 = 100;
+                const minmoist1 = 95;
+                const range = maxmoist1 - minmoist1 + 1;
+                moisture = Math.floor(rand * range) + minmoist1;
+               }
+            } else if (biome === 'Rainforest') {
+               type = (rand < 0.65) ? 'Dense Grass' : 'Mud';
+               color = (type === 'Dense Grass') ? '#196F3D' : '#6E473B';
+            } else {
+               if (rand > 0.85) { type = 'Water'; color = '#3498DB'; }
+               else if (rand > 0.75) { type = 'Stone'; color = '#7F8C8D'; }
+            }
+            return { type, biome, moisture, sunlight, color }; 
+        }
+
+        const TILE_SIZE = 80;
+        let camera = { x: 0, y: 0 };
+        let isDragging = false;
+        let worldseed = Math.random();
+        let activetiles = {};
+        const baseplant = {
+            type: "Fern",
+            growth: 0,
+            idealmoist: 60,
+            colour: "#2ecc71"
+        };
+        function savegame(){
+            const saveData = {
+                cam : camera,
+                seed : worldseed,
+                titles: activetiles
+            };
+            localStorage.setItem('terrasave', JSON.stringify(saveData));
+            console.log("gme saved");
+        }
+        function loadgame(){
+            const savestr = JSON.parse(localStorage.getItem('terrasave'));
+            if (savestr) {
+                const saveData = JSON.parse(savestr);
+                camera = savestr.cam;
+                worldseed = savestr.seed;
+                activetiles = savestr.titles;
+                console.log("gme loaded");
+            } else {
+                worldseed = Math.random();
+                console.log("no save found");
+            }
+            noise.seed(worldseed);
+        }
+        let dragStart = { x: 0, y: 0 };
+        let mousePos = { x: 0, y: 0 };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+
+        function seededRandom(x, y) {
+            let n = Math.sin(x * 13 + y * 70) * 300;
+            return n - Math.floor(n);
+        }
+
+        let isdrag = false;
+        let hasdrag = false;
+        let dragstrt = {x: 0, y: 0};
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            hasdrag = false;
+            dragStart = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mousePos = { x: e.clientX, y: e.clientY };
+
+            if (isDragging) {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+
+                camera.x -= dx;
+                camera.y -= dy;
+
+                dragStart = { x: e.clientX, y: e.clientY };
+                coordsText.innerText = `${Math.floor(camera.x)}, ${Math.floor(camera.y)}`;
+            }
+            if (isdrag) {
+                if (Math.abs(e.clientX - dragstrt.x) > 5 || Math.abs(e.clientY - dragstrt.y) > 5) {
+                    hasdrag = true;
+                }
+            }
+
+            const worldX = mousePos.x + camera.x;
+            const worldY = mousePos.y + camera.y;
+            const tileX = Math.floor(worldX / TILE_SIZE);
+            const tileY = Math.floor(worldY / TILE_SIZE);
+            
+            const currenttile = gettileat(tileX, tileY);
+            hoverText.innerText = `[${tileX}, ${tileY}] Biome: ${currenttile.biome} (${currenttile.type}) | Moisture: ${currenttile.moisture}% | Sunlight: ${currenttile.sunlight}%`;
+        });
+
+        canvas.addEventListener('mouseup', (e) =>{ 
+            isDragging = false; 
+            if(!hasdrag) {
+                const worldX = e.clientX + camera.x;
+                const worldY = e.clientY + camera.y;
+                const tileX = Math.floor(worldX / TILE_SIZE);
+                const tileY = Math.floor(worldY / TILE_SIZE);
+                const key = `${tileX},${tileY}`;
+                const terrain = gettileat(tileX, tileY);
+                if (!activetiles[key] && terrain.type !== 'Water') {
+                    activetiles[key] = JSON.parse(JSON.stringify(baseplant));
+                    console.log(`Planted ${baseplant.type} at [${tileX}, ${tileY}] in ${terrain.biome} biome with moisture ${terrain.moisture}% and sunlight ${terrain.sunlight}%`);
+                    savegame();
+                    
+                }
+                }
+            });
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const startCol = Math.floor(camera.x / TILE_SIZE);
+            const endCol = startCol + (canvas.width / TILE_SIZE) + 1;
+            const startRow = Math.floor(camera.y / TILE_SIZE);
+            const endRow = startRow + (canvas.height / TILE_SIZE) + 1;
+
+            const offsetX = -camera.x + (startCol * TILE_SIZE);
+            const offsetY = -camera.y + (startRow * TILE_SIZE);
+
+            for (let c = 0; c <= (endCol - startCol); c++) {
+                for (let r = 0; r <= (endRow - startRow); r++) {
+                    const tileX = startCol + c;
+                    const tileY = startRow + r;
+                    const x = (c * TILE_SIZE) + offsetX;
+                    const y = (r * TILE_SIZE) + offsetY;
+
+                    const tile = gettileat(tileX, tileY);
+                    ctx.fillStyle = tile.color;
+                    ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+
+        window.addEventListener('load', () => {
+            noise.seed(Math.random());
+            resizeCanvas(); 
+            
+            function loop() {
+                draw();
+                requestAnimationFrame(loop);
+            }
+            loop();
+        });
+    </script>
+</body>
+</html>
