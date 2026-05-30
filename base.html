@@ -5,6 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tera</title>
     <style>
+        #store {
+            position: absolute; 
+            top: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.8); 
+            padding: 15px;
+            border-radius: 8px; 
+            color: white; 
+            z-index: 10;
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px;
+        }
+        .storeitem {
+            background: #34495e; 
+            border: 2px solid #2c3e50; 
+            color: white;
+            padding: 10px; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            text-align: left;
+        }
+        .storeitem:hover { background: #455a64; }
+        .storeitem.selected { border-color: #f1c40f; background: #2ecc71; color: #000; font-weight: bold;}
         body, html {
             margin: 0;
             padding: 0;
@@ -40,8 +63,14 @@
 
     <div id="uilayer">
         Camera: <span id="coords">0, 0</span><br>
-        <div>💰 Bio-Coins: <span id="coin-display">0</span></div>
+        <div>Bio Coins: <span id="coindisplay">0</span></div>
         Tile Stats: <span id="hover-stats">Hover over a tile</span>
+    </div>
+    <div id="store">
+        <h3 style="margin:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">Seed Shop</h3>
+        <button class="storeitem selected" onclick="selectSeed('fern', this)">Giuguggag - 10c</button>
+        <button class="storeitem" onclick="selectSeed('cactus', this)">Cactus - 50c</button>
+        <button class="storeitem" onclick="selectSeed('pine', this)">Pine - 200c</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -58,12 +87,16 @@
             seed: new Image(),
             sprout: new Image(),
             fern: new Image(),
-            desertFern: new Image()
+            desertFern: new Image(),
+            cactus: new Image(),
+            pine: new Image()
         };
-        sprites.seed.src = "images\\download-removebg-preview.png";
-        sprites.sprout.src = "images\\images-removebg-preview.png";
-        sprites.fern.src = "images\\fern.png";
-        sprites.desertFern.src = "images\\download.png";
+        sprites.seed.src = "images/seed.png";
+        sprites.sprout.src = "images/sprout.png";
+        sprites.fern.src = "images/fern.png";
+        sprites.cactus.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='35' y='20' width='30' height='70' rx='15' fill='%232E7D32'/%3E%3C/svg%3E";
+        sprites.pine.src = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,10 20,80 80,80' fill='%231B4F72'/%3E%3C/svg%3E";
+        sprites.desertFern.src = "images/download.png";
         // perkin noise fn i copied it here in case the CDN is unreachable
         if (typeof noise === 'undefined') {
             window.noise = {
@@ -88,14 +121,19 @@
         let worldseed = Math.random();
         let activetiles = {};
         let coins = 0;
-        const coinText = document.getElementById('coin-display');
+        const coinText = document.getElementById('coindisplay');
         
-        const baseplant = {
-            type: "Fern",
-            growth: 0,
-            idealmoist: 60,
-            color: "#2ecc71"
+        const catalog = {
+            fern: {type: "Fern", idealmoist: 50, biome: "Plains", baseearn: 1, cost: 10, color: "#2ecc71"},
+            cactus: { type: "Cactus", biome: "Desert", idealmoist: 10, cost: 50, color: "#27ae60", baseearn: 5 },
+            pine:   { type: "Pine", biome: "Tundra", idealmoist: 80, cost: 200, color: "#1B4F72", baseearn: 25 }
         };
+        let currentseed = 'fern';
+        function selectSeed(seedKey, btnElement) {
+            currentseed = seedKey;
+            document.querySelectorAll('.storeitem').forEach(btn => btn.classList.remove('selected'));
+            btnElement.classList.add('selected');
+        }
 
         function seededRandom(x, y) {
             let n = Math.sin(x * 13 + y * 70) * 300;
@@ -113,14 +151,15 @@
             
             if (moisture < 25 && sunlight > 70) biome = 'Desert';
             if (moisture < 40 && sunlight < 40) biome = 'Tundra';
-            if (moisture > 70 && sunlight > 70) biome = 'Rainforest';
+            if (moisture > 70 && sunlight > 70 && moisture < 90 ) biome = 'Rainforest';
+            if (moisture > 90 && sunlight > 70) biome = 'River';
             
             let rand = seededRandom(tileX, tileY);
             let type = 'Grass';
             let color = '#4CAF50';
 
             if (biome === 'Desert') {
-               type = (rand < 0.85) ? 'Sand' : 'Stone';
+               type = (rand < 0.55) ? 'Sand' : 'Stone';
                color = (type === 'Sand') ? '#E6C280' : '#7F8C8D';
                if (type === 'Sand') {
                 const range = 20 - 2 + 1;
@@ -140,20 +179,48 @@
                 moisture = Math.floor(rand * range) + 95;
                }
             } else if (biome === 'Rainforest') {
-               type = (rand < 0.65) ? 'Dense Grass' : 'Mud';
+               type = (rand < 0.45) ? 'Dense Grass' : 'Mud';
                color = (type === 'Dense Grass') ? '#196F3D' : '#6E473B';
-            } else {
-               if (rand > 0.85) { type = 'Water'; color = '#3498DB'; }
-               else if (rand > 0.75) { type = 'Stone'; color = '#7F8C8D'; }
+            } else if (biome === 'River') {
+               type = (rand < 0.5) ? 'Shallow Water' : 'Deep Water';
+               color = (type === 'Shallow Water') ? '#5DADE2' : '#2E86C1';
+               if (type === 'Shallow Water') {
+                const range = 90 - 80 + 1;
+                moisture = Math.floor(rand * range) + 80;
+               } else {
+                const range = 100 - 90 + 1;
+                moisture = Math.floor(rand * range) + 90;
+               }
+            }
+            else {
+               if (rand > 0.99) { type = 'Water'; color = '#3498DB';
+                if (type === 'Water') {
+                const range = 100 - 90 + 1;
+                moisture = Math.floor(rand * range) + 90;
+               }
+                }
+               else if (rand > 0.99) { type = 'Stone'; color = '#7F8C8D';
+                if (type === 'Stone') {
+                const range = 100 - 90 + 1;
+                moisture = Math.floor(rand * range) + 0;
+               }
+                }
             }
             return { type, biome, moisture, sunlight, color }; 
         }
+        window.addEventListener('keydown', (e) => {
+        if (e.shiftKey && e.key.toLowerCase() === 'r') {
+            localStorage.removeItem('terrasave');
+           location.reload(); 
+        }
+    });
 
         function savegame(){
             const saveData = {
                 cam : camera,
                 seed : worldseed,
-                tiles: activetiles 
+                tiles: activetiles,
+                money: coins
             };
             localStorage.setItem('terrasave', JSON.stringify(saveData));
         }
@@ -165,12 +232,14 @@
                 camera = saveData.cam;
                 worldseed = saveData.seed;
                 activetiles = saveData.tiles || {};
+                coins = saveData.money || 0;
                 console.log("Game loaded!");
             } else {
                 worldseed = Math.random();
                 console.log("No save found, new world generated.");
             }
             noise.seed(worldseed);
+            coinText.innerText = coins;
         }
 
         window.addEventListener('load', () => {
@@ -225,7 +294,7 @@
         });
 
         canvas.addEventListener('mouseup', (e) =>{ 
-            isDragging = false; 
+            isDragging = false;
             if(!hasdragged) {
                 const worldX = e.clientX + camera.x;
                 const worldY = e.clientY + camera.y;
@@ -235,8 +304,23 @@
                 const terrain = gettileat(tileX, tileY);
                 
                 if (!activetiles[key] && terrain.type !== 'Water') {
-                    activetiles[key] = JSON.parse(JSON.stringify(baseplant));
-                    savegame();
+                    const toplant = catalog[currentseed];
+                        if (coins >= toplant.cost) {
+                            coins -= toplant.cost;
+                            coinText.innerText = coins;
+                            activetiles[key] = {
+                                type: toplant.type,
+                                growth: 0,
+                                idealmoist: toplant.idealmoist,
+                                biome: toplant.biome,
+                                multiplier: 1,
+                                color: toplant.color
+                            };
+                            savegame();
+                        } else {
+                            hoverText.innerText = `Not enough Bio Coins! ${toplant.cost} needed to plant ${toplant.type}.`;
+                            alert("Not enough Bio Coins!");
+                        }
                 }
             }
         });
@@ -256,6 +340,8 @@
 
             const offsetX = -camera.x + (startCol * TILE_SIZE);
             const offsetY = -camera.y + (startRow * TILE_SIZE);
+            ctx.fillStyle = "#1a252c";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             for (let c = 0; c <= (endCol - startCol); c++) {
                 for (let r = 0; r <= (endRow - startRow); r++) {
@@ -265,8 +351,23 @@
                     const y = (r * TILE_SIZE) + offsetY;
 
                     const tile = gettileat(tileX, tileY);
+                    ctx.fillStyle = darkenColor(tile.color, 40);
+                    ctx.fillRect(x, y + 8, TILE_SIZE, TILE_SIZE);
                     ctx.fillStyle = tile.color;
                     ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = "rgba(255,255,255,0.1)";
+                    ctx.fillRect(x, y, TILE_SIZE, 4);
+                    let detailrand = seededRandom(tileX * Math.PI , tileY * Math.E);
+                    if (tile.biome === "Plains" && detailrand > 0.8) {
+                        ctx.fillStyle = "#27ae60";
+                        ctx.fillRect(x + 10, y + 10, 5, 12);
+                        ctx.fillRect(x + 20, y + 15, 5, 10);
+                    } else if (tile.biome === 'Rainforest' && detailrand > 0.7) {
+                        ctx.fillStyle = "#145A32"; ctx.beginPath(); ctx.arc(x+40, y+40, 20, 0, Math.PI*2); ctx.fill();
+                    } else if (tile.biome === 'Desert' && detailrand > 0.9) {
+                        ctx.fillStyle = "#6E2C00"; ctx.fillRect(x + 30, y + 54, 15, 10); 
+                        ctx.fillStyle = "#A04000"; ctx.fillRect(x + 30, y + 50, 15, 10); 
+                    }
                     
                     const key = `${tileX},${tileY}`;
                     const plant = activetiles[key];
@@ -274,7 +375,7 @@
                     if (plant) {
                         let currentSprite;
 
-                        // Determine image based on growth
+                        
                         if (plant.growth < 30) {
                             currentSprite = sprites.seed;
                         } else if (plant.growth < 80) {
@@ -283,65 +384,113 @@
                             if (plant.type === "Desert Fern") {
                                 currentSprite = sprites.desertFern;
                             } else {
+                                if(plant.type === "Cactus"){
+                                    currentSprite = sprites.cactus;
+                                } else if (plant.type === "Pine"){
+                                    currentSprite = sprites.pine;
+                                } else
                                 currentSprite = sprites.fern;
                             }
                         }
 
                         if (currentSprite && currentSprite.complete && currentSprite.naturalWidth !== 0) {
                             const padding = 10;
+                            let currentpadding = 10;
+                            if (plant.isdying){
+                                plant.opacity -= 0.02;
+                                if (plant.opacity <= 0){
+                                    delete activetiles[key];
+                                    continue;
+                                }
+                                ctx.globalAlpha = plant.opacity;
+                                currentpadding = 10 + (1 - plant.opacity) * 25;
+                            }else {
+                                ctx.globalAlpha = 1;
+                            }
                             ctx.drawImage(
                                 currentSprite, 
-                                x + padding, 
-                                y + padding, 
-                                TILE_SIZE - (padding * 2), 
-                                TILE_SIZE - (padding * 2)
+                                x + currentpadding, 
+                                y + currentpadding, 
+                                TILE_SIZE - (currentpadding * 2), 
+                                TILE_SIZE - (currentpadding * 2)
                             );
-                            
-                            if(plant.type !== "Fern"){
+                            ctx.globalAlpha = 1;
+                            if (plant.multiplier > 1 && !plant.isdying) {
                                 ctx.strokeStyle = "rgba(241, 196, 15, 0.8)";
                                 ctx.lineWidth = 3;
                                 ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
                             }
+                            
                         }
                     }
                 }
             }
         }
+        const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height/3, canvas.width/2, canvas.height/2, canvas.width, canvas.height);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.6)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        
+        function darkenColor(color, percent) {
+            let num = parseInt(color.replace("#",""), 16),
+            amt = Math.round(2.55 * percent),
+            R = (num >> 16) - amt,
+            G = (num >> 8 & 0x00FF) - amt,
+            B = (num & 0x0000FF) - amt;
+            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+        }
         function tick() {
             let needssave = false; 
             for(const key in activetiles){
                 const plant = activetiles[key];
+                if(plant.isdying) continue;
                 const [x,y] = key.split(',').map(Number);
-                
+                const tiledata = gettileat(x,y);
+                const moistureDiff = Math.abs(tiledata.moisture - plant.idealmoist);
                 if(plant.growth < 100){
-                    const tiledata = gettileat(x,y);
-                    const moistureDiff = Math.abs(tiledata.moisture - plant.idealmoist);
                     
-                    if (moistureDiff < 20){
+                    if (moistureDiff < 20 && tiledata.sunlight > 50 && tiledata.biome == plant.biome){
                         plant.growth += 10;
-                    } else if (moistureDiff < 40){
+                    } else if (moistureDiff < 40 && tiledata.sunlight < 30 || tiledata.biome == plant.biome){
                         plant.growth += 2;
                     } else {
-                        plant.growth += 0;
+                        if (Math.random() < 0.4){
+                            plant.type = "Desert Fern";
+                            plant.idealmoist = tiledata.moisture;
+                            plant.biome = tiledata.biome == "Desert" ? "Desert" : tiledata.biome == "Tundra" ? "Tundra" : "Rainforest";
+                            plant.multiplier = 5; 
+                            plant.color = "#f1c40f"; 
+                            plant.growth += 10; 
+                            console.log(`MUTATION at ${key}!`);
+                        } else {
+                            plant.isdying = true;
+                            plant.opacity = 1;
+                            console.log(`A plant withered away at ${key}`);
+                            needssave = true;
+                            coins = Math.max(0,coins - 30 );
+                            continue;
+                        }
                     }
                     
                     if (plant.growth >= 100) plant.growth = 100;
-                    
-                    
-                    if(moistureDiff > 30 && Math.random() < 0.05){
-                        plant.type = "Desert Fern";
-                        plant.idealmoist = tiledata.moisture;
-                        plant.color = "#f1c40f"; 
-                        console.log(`MUTATION at ${key}!`);
-                    }
                     needssave = true;
+                    } else {
+                        let earnings = plant.baseearn || 1;
+                        if(plant.multiplier>1){
+                            earnings *= plant.multiplier;
+                        }
+                        coins += earnings;
+                        needssave = true;
+                    }
+                    
                 }
+                if (needssave) {
+                coinText.innerText = coins;
+                savegame();
             }
-            if (needssave) savegame();
-        }
-        
+            
+            }
         setInterval(tick, 1000);
     </script>
 </body>
