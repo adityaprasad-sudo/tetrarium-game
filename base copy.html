@@ -5,7 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tera 3D</title>
     <style>
-        
+        #crafting {
+            position: absolute; 
+    top: 10px; left: 250px; 
+    background: rgba(0, 0, 0, 0.8); 
+    padding: 15px; border-radius: 8px; color: white; 
+    z-index: 10; display: flex; flex-direction: column; gap: 10px;
+        }
+        .craft-btn {
+            background: #c4a78fd3; 
+            border: 2px solid #ffffff;  
+            cursor: pointer; 
+            border-radius: 5px; 
+            text-align: left;
+            font-size: 12px;
+            font-weight: 900;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 35px;
+            border: 5px solid #000000;
+            border-radius: 20px; 
+            
+            box-shadow: 8px 8px 0px #000000; 
+            
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+        }
+
+.craft-btn:hover { transform: translate(-2px, -2px); box-shadow: 10px 10px 0px #000000; }
+.craft-btn.owned { transform: translate(8px, 8px); box-shadow: 0px 0px 0px #000000;}
         #store {
             position: absolute; 
             top: 10px; right: 10px;
@@ -63,12 +93,22 @@
     <div id="uilayer">
         Camera: <span id="coords">0, 0</span><br>
         <div>Bio Coins: <span id="coindisplay">0</span></div>
+        <div style="margin-top: 10px; color: #f1c40f;">Wood: <span id="woodinv">0</span></div>
+        <div style="margin-bottom: 10px; color: #bdc3c7;">Stone: <span id="stoneinv">0</span></div>
         Tile Stats: <span id="hover-stats">Hover over a tile</span>
         
         <div style="margin-top: 15px; border-top: 1px solid #7f8c8d; padding-top: 5px; pointer-events: auto;">
             Render Distance: <span id="chunk-display">30</span><br>
             <input type="range" id="chunk-slider" min="5" max="35" value="30" step="1" style="width: 100%;">
         </div>
+    </div>
+    <div style="position: absolute; top: 50%; left: 50%; width: 4px; height: 15px; background: white; transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: difference; z-index: 100;"></div>
+    <div style="position: absolute; top: 50%; left: 50%; width: 15px; height: 4px; background: white; transform: translate(-50%, -50%); pointer-events: none; mix-blend-mode: difference; z-index: 100;"></div>
+    <div id="crafting">
+        <h3 style="margin:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">Crafting</h3>
+        <button id = "btnwoodaxe" class="craft-btn" onclick="crafting.craft('woodaxe', mech)">Wooden Axe - 5 Wood</button>
+        <button id = "btnwoodpic" class="craft-btn" onclick="crafting.craft('woodpic', mech)">Wooden Pickaxe - 15 Wood</button>
+        <button id = "btnstonepic" class="craft-btn" onclick="crafting.craft('stonepic', mech)">Stone Pickaxe - 5 Wood, 15 Stone</button>
     </div>
     <div id="store">
         <h3 style="margin:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">Seed Shop</h3>
@@ -80,6 +120,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/perlin-js/1.0.0/perlin.js"></script>
+    
+    <script src="js/mechanism.js"></script>
+    <script src="js/craft.js"></script>
+    <script src="js/player.js"></script>
+
     <script>
         if (typeof noise === 'undefined') {
             window.noise = {
@@ -118,8 +163,8 @@
         scene.background = new THREE.Color('#87CEEB');
 
         const aspect = window.innerWidth / window.innerHeight;
-        const camera = new THREE.PerspectiveCamera(50, aspect, 1, 1000);
-        camera.position.set(40, 20, 40); 
+        const camera = new THREE.PerspectiveCamera(50, aspect, 0.001, 1000);
+        camera.position.set(0, 0, 0); 
         camera.lookAt(0, 0, 0);
         const baseGeo = new THREE.PlaneGeometry(10000, 11000);
         const baseMat = new THREE.MeshBasicMaterial({ color: '#87CEEB'});
@@ -129,6 +174,12 @@
     scene.add(basePlane);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const gmcanvas = renderer.domElement;
+        gmcanvas.addEventListener('click', () => {
+            if(document.pointerLockElement !== gmcanvas){
+                gmcanvas.requestPointerLock();
+            }
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -162,28 +213,45 @@
         const blockgeo = new THREE.BoxGeometry(1,1,1);
         const materialcache = {};
         const renderchiggas = {};
-        let treemodel = null;
-        const gltfLoader = new THREE.GLTFLoader();
+        function spawntree(x,basey,z,key){
+            const treeparts = [];
+            const treeheight = Math.floor(seededRandom(x, z) * 2) + 3;
+            for(let i = 0; i < treeheight; i++){
+                const loggeo = new THREE.BoxGeometry(1,1,1);
+                const logmat = new THREE.MeshStandardMaterial({ color: '#5D4037' });
+                const log = new THREE.Mesh(loggeo, logmat);
+                const ypos = basey + i + 0.5;
+                log.position.set(x, ypos, z);
+                log.castShadow = true; log.receiveShadow = true;
+                log.userData = { gridX: x, gridZ: z, type: 'Log', parentKey: key };
+                scene.add(log);
+                treeparts.push(log);
+            }
+            const leafgeo = new THREE.BoxGeometry(1,1,1);
+            const leafmat = new THREE.MeshStandardMaterial({ color: '#27ae60' });
+            for (let lx = -1; lx <= 1; lx++) {
+             for (let ly = 0; ly <= 1; ly++) {
+              for (let lz = -1; lz <= 1; lz++) {
+                if (Math.abs(lx) === 1 && Math.abs(lz) === 1 && ly === 1) continue; 
+                
+                const leaf = new THREE.Mesh(leafgeo, leafmat);
+                const yPos = basey + treeheight + ly - 0.5;
+                leaf.position.set(x + lx, yPos, z + lz);
+                leaf.castShadow = true; leaf.receiveShadow = true;
+                leaf.userData = { gridX: x+lx, gridZ: z+lz, type: 'Leaves', parentKey: key };
+                scene.add(leaf);
+                treeparts.push(leaf);
+            }
+        }
+
+        }
+        renderchiggas[key] = treeparts;
+    }
         const texture = new THREE.TextureLoader();
              const sandtext = texture.load('sand.jpg');
              const sandstonetext = texture.load('images/sandstone.jpg');
              const sandstonenormal = texture.load('images/sandstonenormal.jpg')
-        gltfLoader.load('tree.glb', (gltf) => {
-            treemodel = gltf.scene;
-            treemodel.scale.set(3, 3, 3);
-            treemodel.traverse((node) => {
-                if (node.isMesh) {
-                    node.castShadow = true;
-                    node.receiveShadow = true;
-                }
-            });
-            console.log("Tree model loaded successfully");
-            const camx = Math.floor(camera.position.x);
-            const camz = Math.floor(camera.position.z);
-            updateWorld(camx, camz);
-        }, undefined, (error) => {
-            console.error('Error loading tree model:', error);
-        });
+        
         const renderedblocks = {};
         
 
@@ -293,14 +361,17 @@
                     let height = 1.0;
                     if (tileData.type.includes('Water')) height = 0.7;
                     if (tileData.type === 'SandStone') {
+                        if (mech.obliratedobj.has(key + '-rock')){
+                            height = 1.0;
+                        }else{
                         const jitter = seededRandom(x * Math.PI, z * Math.E);
-                        height =  0.7 + (jitter * 0.2);
+                        height =  0.7 + (jitter * 0.2);}
                     };
                     const depthearth = 15;
                     if (tileData.type === 'Mountain'){
                         const slope = Math.max(0, tileData.elevation - 0.1);
                         const rawheight = 2.0 + Math.pow(slope * 6, 2);
-                        const yshrink= 0.8;
+                        const yshrink= 0.4;
                         height = 1.0 + (rawheight * yshrink);
 
                     };
@@ -317,17 +388,11 @@
                 
                     scene.add(block);
                     renderedblocks[key] = block;
-                    if (tileData.biome === 'Rainforest' && tileData.type === 'Dense Grass' && treemodel) {
-                        if (!renderchiggas[key]){
+                    if (tileData.biome === 'Rainforest' && tileData.type === 'Dense Grass') {
+                        if (!renderchiggas[key] && !mech.obliratedobj.has(key + '-tree')){
                         const treechance = seededRandom(x *5, z *5);
                           if (treechance > 0.95) {
-                            const tree = treemodel.clone();
-                            const yoff = -2;
-                            tree.position.set(x, height + yoff, z);
-                            tree.rotation.y = treechance * Math.PI;
-                            tree.castShadow = true;
-                            scene.add(tree);
-                            renderchiggas[key] = tree;}}
+                            spawntree(x, height, z, key);}}
                     }
                     
                 }
@@ -340,11 +405,12 @@
                     scene.remove(renderedblocks[key]);
                     delete renderedblocks[key];
                     if (renderchiggas[key]) {
-            scene.remove(renderchiggas[key]);
+            renderchiggas[key].forEach(part => scene.remove(part));
             delete renderchiggas[key];
         }
                 } else {
                     interactableTiles.push(renderedblocks[key]);
+                    if (renderchiggas[key]) renderchiggas[key].forEach(part => interactableTiles.push(part));
                 }
             }
         }
@@ -368,7 +434,7 @@
             } else if (tileData.type === 'Mountain') {
                 const slope = Math.max(0, tileData.elevation - 0.1);
                 const rawheight = 2.0 + Math.pow(slope * 6, 2);
-                const yshrink = 0.8;
+                const yshrink = 0.4;
                 baseHeight = 1.0 + (rawheight * yshrink);
 
             } else if (tileData.type === 'Stone'){
@@ -433,96 +499,58 @@
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-let isDragging = false;
-let hasdragged = false;
-let previousMousePosition = { x: 0, y: 0 };
-
-window.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    hasdragged = false;
-    previousMousePosition = { x: e.clientX, y: e.clientY };
-});
-
-window.addEventListener('mousemove', (e) => {
-    if (isDragging) {
-        const dx = e.clientX - previousMousePosition.x;
-        const dy = e.clientY - previousMousePosition.y;
-        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasdragged = true;
-        
-        camera.position.x -= (dx + dy) * 0.04;
-        camera.position.z += (dx - dy) * 0.04;
-        
-        const target = new THREE.Vector3(camera.position.x - camera.position.y, 0, camera.position.z - camera.position.y);
-        camera.lookAt(target);
-        
-        coordsText.innerText = `${Math.floor(camera.position.x)}, ${Math.floor(camera.position.z)}`;
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-    } else {
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(interactableTiles);
-        
-        if (intersects.length > 0) {
-            const blockData = intersects[0].object.userData;
-            const tileData = gettileat(blockData.gridX, blockData.gridZ);
-            hoverText.innerText = `[${blockData.gridX}, ${blockData.gridZ}] Biome: ${tileData.biome} (${tileData.type}) | Moisture: ${tileData.moisture}% | Sunlight: ${tileData.sunlight}%`;
-        }
+document.addEventListener('click', (e)=> {
+    if(e.target.tagName === 'canvas'){
+        document.body.requestPointerLock();
     }
 });
 
 window.addEventListener('mouseup', (e) => {
     isDragging = false;
-    if (hasdragged) return;
+    if (!document.pointerLockElement) return;
     
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    mouse.x = 0;
+    mouse.y = 0;
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(interactableTiles);
+    const intersects = raycaster.intersectObjects(interactableTiles, true);
     
-    if (intersects.length > 0) {
+    if (intersects.length > 0 && intersects[0].distance <= 6) {
         const clickedBlock = intersects[0].object;
-        const x = clickedBlock.userData.gridX;
-        const z = clickedBlock.userData.gridZ;
-        const type = clickedBlock.userData.type;
-        const key = `${x},${z}`;
+        let hitobj = intersects[0].object;
+        while (hitobj && hitobj.parent && hitobj.userData.gridX === undefined) {
+            hitobj = hitobj.parent;
+        }
+        if (hitobj.userData.gridX !== undefined) {
+            const x = hitobj.userData.gridX;
+            const z = hitobj.userData.gridZ;
+            const key = `${x},${z}`;
+            const type = hitobj.userData.type || gettileat(x, z).type;
         
-        if (!activetiles[key] && !type.includes('Water')) {
-            const toplant = catalog[currentseed];
-            if (coins >= toplant.cost) {
-                coins -= toplant.cost;
-                coinText.innerText = coins;
-                activetiles[key] = {
-                    type: toplant.type, growth: 0, idealmoist: toplant.idealmoist,
-                    biome: toplant.biome, multiplier: 1, color: toplant.color
-                };
-                spawn3DPlant(x, z, key, toplant.color);
-                savegame();
-            } else {
-                alert("Not enough Bio Coins");
+            const minesome = mech.mineTarget(x, z, key, hitobj , scene, renderchiggas);
+            
+            if (minesome) {
+                const index = interactableTiles.indexOf(clickedBlock);
+                if (index > -1) interactableTiles.splice(index, 1);
+            }
+            
+            if (!minesome && !activetiles[key] && !type.includes('Water')) {
+                const toplant = catalog[currentseed];
+                if (coins >= toplant.cost) {
+                    coins -= toplant.cost;
+                    coinText.innerText = coins;
+                    activetiles[key] = {
+                        type: toplant.type, growth: 0, idealmoist: toplant.idealmoist,
+                        biome: toplant.biome, multiplier: 1, color: toplant.color
+                    };
+                    spawn3DPlant(x, z, key, toplant.color);
+                    savegame();
+                } else {
+                    alert("Not enough Bio Coins");
+                }
             }
         }
     }
 });
-
-
-window.addEventListener('wheel', (e) => {
-    const zoomSpeed = e.deltaY > 0 ? 8 : -8;
-    if (camera.position.y + zoomSpeed >= 4 && camera.position.y + zoomSpeed <= 20) {
-        camera.position.x += zoomSpeed;
-        camera.position.y += zoomSpeed;
-        camera.position.z += zoomSpeed;
-        
-        const target = new THREE.Vector3(camera.position.x - camera.position.y, 0, camera.position.z - camera.position.y);
-        camera.lookAt(target);
-    }
-});
-
-
-
-
-
-
 
         window.addEventListener('keydown', (e) => {
             if (e.shiftKey && e.key.toLowerCase() === 'r') {
@@ -616,16 +644,37 @@ window.addEventListener('wheel', (e) => {
 
         function animate() {
             requestAnimationFrame(animate);
-            const targX = Math.floor(camera.position.x - camera.position.y);
-            const targZ = Math.floor(camera.position.z - camera.position.y);
-            if (targX !== lastcamgridx || targZ !== lastcamgridz){
-                updateWorld(targX,targZ);
-                lastcamgridx = targX;
-                lastcamgridz = targZ;
-            }
-            basePlane.position.x = camera.position.x;
-            basePlane.position.y = camera.position.y;
+            walkingsimulator.update(camera, renderedblocks, basePlane, coordsText, renderchiggas);
+            mouse.x = 0;
+            mouse.y = 0;
+            raycaster.setFromCamera(mouse, camera);
+            const interct = raycaster.intersectObjects(interactableTiles, true);
+            if (interct.length > 0 && interct[0].distance <= 6) {
+        let hitobj = interct[0].object;
+        while (hitobj && hitobj.parent && hitobj.userData.gridX === undefined) {
+            hitobj = hitobj.parent;
+        }
+        if(hitobj.userData.gridX !== undefined){
+            const x = hitobj.userData.gridX;
+            const z = hitobj.userData.gridZ;
+            const key = `${x},${z}`;
+            mech.targetglow(scene,  hitobj);
+            const tileData = gettileat(x, z);
+            hoverText.innerText = `[${x}, ${z}] Biome: ${tileData.biome} (${tileData.type}) | Moisture: ${tileData.moisture}%`;
+        } else {
+            mech.clearline(scene);
+        }
+    } else {
+        mech.clearline(scene);
+    }
             const distgrd = camera.position.y * Math.sqrt(2);
+            let targX = 0;
+let targZ = 0;
+if (walkingsimulator.mesh) {
+    targX = Math.floor(walkingsimulator.mesh.position.x);
+    targZ = Math.floor(walkingsimulator.mesh.position.z);
+}
+
             scene.fog.near = distgrd;
             scene.fog.far = distgrd + (chunkradii * 0.95);
                 timeofday += dayprog;
@@ -650,12 +699,13 @@ window.addEventListener('wheel', (e) => {
                 }
 
 
-            
+            mech.tickanimations(scene);
             renderer.render(scene, camera);
         }
 
         window.addEventListener('load', () => {
             loadgame();
+            walkingsimulator.init(scene, 0,20,0);
             animate();
             setInterval(tick, 1000);
         });
