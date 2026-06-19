@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tera 3D</title>
+    <style>
+        
+        #store {
+            position: absolute; 
+            top: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.8); 
+            padding: 15px;
+            border-radius: 8px; 
+            color: white; 
+            z-index: 10;
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px;
+        }
+        .storeitem {
+            background: #34495e; 
+            border: 2px solid #2c3e50; 
+            color: white;
+            padding: 10px; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            text-align: left;
+        }
+        .storeitem:hover { background: #455a64; }
+        .storeitem.selected { border-color: #f1c40f; background: #2ecc71; color: #000; font-weight: bold;}
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; 
+            background-color: #1a252c;
+            font-family: monospace;
+        }
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        #uilayer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none; 
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="uilayer">
+        Camera: <span id="coords">0, 0</span><br>
+        <div>Bio Coins: <span id="coindisplay">0</span></div>
+        Tile Stats: <span id="hover-stats">Hover over a tile</span>
+        
+        <div style="margin-top: 15px; border-top: 1px solid #7f8c8d; padding-top: 5px; pointer-events: auto;">
+            Render Distance: <span id="chunk-display">30</span><br>
+            <input type="range" id="chunk-slider" min="5" max="35" value="30" step="1" style="width: 100%;">
+        </div>
+    </div>
+    <div id="store">
+        <h3 style="margin:0; border-bottom:1px solid #7f8c8d; padding-bottom:5px;">Seed Shop</h3>
+        <button class="storeitem selected" onclick="selectSeed('fern', this)">Giuguggag - 10c</button>
+        <button class="storeitem" onclick="selectSeed('cactus', this)">Cactus - 50c</button>
+        <button class="storeitem" onclick="selectSeed('pine', this)">Pine - 200c</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/perlin-js/1.0.0/perlin.js"></script>
+    <script>
+        if (typeof noise === 'undefined') {
+            window.noise = {
+                seed: function() {},
+                perlin2: function(x, y) {
+                    let X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+                    x -= Math.floor(x); y -= Math.floor(y);
+                    let u = x * x * x * (x * (x * 6 - 15) + 10), v = y * y * y * (y * (y * 6 - 15) + 10);
+                    const n = (i, j) => {
+                        let s = Math.sin((i & 255) * 12.9898 + (j & 255) * 78.233) * 43758.5453123;
+                        return s - Math.floor(s);
+                    };
+                    let a = n(X, Y), b = n(X + 1, Y), c = n(X, Y + 1), d = n(X + 1, Y + 1);
+                    return (a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v) * 2 - 1;
+                }
+            };
+        }
+
+        const catalog = {
+            fern: {type: "Fern", idealmoist: 50, biome: "Plains", baseearn: 1, cost: 10, color: "#2ecc71"},
+            cactus: { type: "Cactus", biome: "Desert", idealmoist: 10, cost: 50, color: "#27ae60", baseearn: 5 },
+            pine:   { type: "Pine", biome: "Tundra", idealmoist: 80, cost: 200, color: "#1B4F72", baseearn: 25 }
+        };
+
+        let worldseed = Math.random();
+        let activetiles = {};
+        let coins = 0;
+        let currentseed = 'fern';
+        
+        const coordsText = document.getElementById('coords');
+        const hoverText = document.getElementById('hover-stats');
+        const coinText = document.getElementById('coindisplay');
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog('#87CEEB', 40,70);
+        scene.background = new THREE.Color('#87CEEB');
+
+        const aspect = window.innerWidth / window.innerHeight;
+        const camera = new THREE.PerspectiveCamera(50, aspect, 1, 1000);
+        camera.position.set(40, 20, 40); 
+        camera.lookAt(0, 0, 0);
+        const baseGeo = new THREE.PlaneGeometry(10000, 11000);
+        const baseMat = new THREE.MeshBasicMaterial({ color: '#87CEEB'});
+    const basePlane = new THREE.Mesh(baseGeo, baseMat);
+          basePlane.rotation.x = -Math.PI / 2; 
+   basePlane.position.y = -0.5; 
+    scene.add(basePlane);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(25, 30, 15);
+        sunLight.castShadow = true;
+
+        const d = 50; 
+        sunLight.shadow.camera.left = -d;
+        sunLight.shadow.camera.right = d;
+        sunLight.shadow.camera.top = d;
+        sunLight.shadow.camera.bottom = -d;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.bias = -0.0005;
+        scene.add(sunLight);
+        scene.add(sunLight.target);
+        let timeofday = 0.5; 
+          const dayprog = 0.0003; //prog of day
+        const sky = new THREE.Color('#87CEEB'); //day
+          const sky2 = new THREE.Color('#0B1320'); //night
+
+        const interactableTiles = [];
+        const plantMeshes = {};
+        let chunkradii = 30;
+        const blockgeo = new THREE.BoxGeometry(1,1,1);
+        const materialcache = {};
+        const renderchiggas = {};
+        let treemodel = null;
+        const gltfLoader = new THREE.GLTFLoader();
+        const texture = new THREE.TextureLoader();
+             const sandtext = texture.load('sand.jpg');
+             const sandstonetext = texture.load('images/sandstone.jpg');
+             const sandstonenormal = texture.load('images/sandstonenormal.jpg')
+        gltfLoader.load('tree.glb', (gltf) => {
+            treemodel = gltf.scene;
+            treemodel.scale.set(3, 3, 3);
+            treemodel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            console.log("Tree model loaded successfully");
+            const camx = Math.floor(camera.position.x);
+            const camz = Math.floor(camera.position.z);
+            updateWorld(camx, camz);
+        }, undefined, (error) => {
+            console.error('Error loading tree model:', error);
+        });
+        const renderedblocks = {};
+        
+
+        function seededRandom(x, y) {
+            let n = Math.sin((x + worldseed * 100) * 13 + (y + worldseed * 100) * 70) * 300;
+             return n - Math.floor(n);
+        }
+
+        function gettileat(tileX, tileY) {
+             const scale = 0.1; 
+             const offsetX = tileX + (worldseed * 10000);
+             const offsetY = tileY + (worldseed * 10000);
+             const moistnoise = noise.perlin2(offsetX * scale, offsetY * scale);
+             const sunnoise = noise.perlin2((offsetX + 100) * scale, (offsetY + 100) * scale);
+             const elevation = noise.perlin2((offsetX - 50) * scale, (offsetY - 50) * scale);
+             let moisture = Math.floor((moistnoise + 1) * 50);
+             const sunlight = Math.floor((sunnoise + 1) * 50);
+             let biome = 'Plains';
+            
+             if (moisture < 25 && sunlight > 70) biome = 'Desert';
+             if (moisture < 40 && sunlight < 40) biome = 'Tundra';
+             if (moisture >= 55 && sunlight >= 50 && moisture < 95 ) biome = 'Rainforest';
+             if (moisture > 90 && sunlight > 70) biome = 'River';
+            
+             let rand = seededRandom(tileX, tileY);
+             let type = 'Grass';
+             let color = '#4CAF50';
+            
+
+             if (biome === 'Desert') {
+               type = (rand < 0.55) ? 'Sand' : 'SandStone';
+               color = (type === 'Sand') ? 'txtsand' : 'txtsandstone';
+               if (type === 'Sand') {
+                moisture = Math.floor(rand * 19) + 2;
+               } else {
+                moisture = Math.floor(rand * 11) + 5;
+               }
+             } else if (biome === 'Tundra') {
+                if (elevation > 0.3){
+                    type = 'Mountain';
+                    color = '#DCE1E3';
+                    moisture = Math.floor(rand * 11) + 20;
+                } else {
+               type = (rand < 0.65) ? 'Snow' : 'Ice';
+               color = (type === 'Snow') ? '#F2F4F4' : '#AED6F1';
+               if (type === 'Snow') {
+                moisture = Math.floor(rand * 11) + 90;
+               } else {
+                moisture = Math.floor(rand * 6) + 95;
+               }}
+             } else if (biome === 'Rainforest') {
+               type = (rand < 0.45) ? 'Dense Grass' : 'Mud';
+               color = (type === 'Dense Grass') ? '#196F3D' : '#6E473B';
+             } else if (biome === 'River') {
+               type = (rand < 0.5) ? 'Shallow Water' : 'Deep Water';
+               color = (type === 'Shallow Water') ? '#5DADE2' : '#2E86C1';
+               if (type === 'Shallow Water') {
+                moisture = Math.floor(rand * 11) + 80;
+               } else {
+                moisture = Math.floor(rand * 11) + 90;
+               }
+             } else {
+               if (rand > 0.99) { 
+                type = 'Water'; color = '#3498DB';
+                moisture = Math.floor(rand * 11) + 90;
+               } else if (rand > 0.98) { 
+                type = 'Stone'; color = '#7F8C8D';
+                moisture = Math.floor(rand * 11) + 0;
+               }
+             }
+             return { type, biome, moisture, sunlight, color, elevation }; 
+        }
+
+        function updateWorld(camX, camZ) {
+            const expectedBlocks = new Set();
+    
+            for (let x = camX - chunkradii; x <= camX + chunkradii; x++) {
+              for (let z = camZ - chunkradii; z <= camZ + chunkradii; z++) {
+                const key = `${x},${z}`;
+                expectedBlocks.add(key);
+            
+                if (!renderedblocks[key]) {
+                    const tileData = gettileat(x, z);
+                
+                    if (!materialcache[tileData.color]) {
+                        if (tileData.color === 'txtsand'){
+                            
+                         materialcache[tileData.color] = new THREE.MeshStandardMaterial({ 
+                         map: sandtext, 
+                         roughness: 0.9
+                        });} else if (tileData.color === 'txtsandstone'){
+                         materialcache[tileData.color] = new THREE.MeshStandardMaterial({ 
+                         color: '#D35400', 
+                         roughness: 0.9
+                        });
+                        }
+                        else {
+                            materialcache[tileData.color] = new THREE.MeshStandardMaterial({ 
+                            color: tileData.color, 
+                            roughness: 0.8
+                        });
+                    }
+                    }
+                
+                    const block = new THREE.Mesh(blockgeo, materialcache[tileData.color]);
+                
+                    let height = 1.0;
+                    if (tileData.type.includes('Water')) height = 0.7;
+                    if (tileData.type === 'SandStone') {
+                        const jitter = seededRandom(x * Math.PI, z * Math.E);
+                        height =  0.7 + (jitter * 0.2);
+                    };
+                    const depthearth = 15;
+                    if (tileData.type === 'Mountain'){
+                        const slope = Math.max(0, tileData.elevation - 0.1);
+                        const rawheight = 2.0 + Math.pow(slope * 6, 2);
+                        const yshrink= 0.8;
+                        height = 1.0 + (rawheight * yshrink);
+
+                    };
+                    if (tileData.type === 'Mud') {
+                        const jitter = seededRandom(x * Math.PI, z * Math.E);
+                        height = 0.7 + (jitter * 0.2);;
+                    }
+                    
+                    block.scale.y = height;
+                    block.position.set(x, height / 2, z);
+                    block.castShadow = true;
+                    block.receiveShadow = true;
+                    block.userData = { gridX: x, gridZ: z, biome: tileData.biome, type: tileData.type };
+                
+                    scene.add(block);
+                    renderedblocks[key] = block;
+                    if (tileData.biome === 'Rainforest' && tileData.type === 'Dense Grass' && treemodel) {
+                        if (!renderchiggas[key]){
+                        const treechance = seededRandom(x *5, z *5);
+                          if (treechance > 0.95) {
+                            const tree = treemodel.clone();
+                            const yoff = -2;
+                            tree.position.set(x, height + yoff, z);
+                            tree.rotation.y = treechance * Math.PI;
+                            tree.castShadow = true;
+                            scene.add(tree);
+                            renderchiggas[key] = tree;}}
+                    }
+                    
+                }
+              }
+            }
+
+            interactableTiles.length = 0; 
+            for (const key in renderedblocks) {
+                if (!expectedBlocks.has(key)) {
+                    scene.remove(renderedblocks[key]);
+                    delete renderedblocks[key];
+                    if (renderchiggas[key]) {
+            scene.remove(renderchiggas[key]);
+            delete renderchiggas[key];
+        }
+                } else {
+                    interactableTiles.push(renderedblocks[key]);
+                }
+            }
+        }
+
+        function selectSeed(seedKey, btnElement) {
+            currentseed = seedKey;
+            document.querySelectorAll('.storeitem').forEach(btn => btn.classList.remove('selected'));
+            btnElement.classList.add('selected');
+        }
+
+        function spawn3DPlant(x, z, key, color) {
+            const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            const tileData = gettileat(x, z);
+            let baseHeight = 1.0;
+            if (tileData.type === 'SandStone') {
+             const jitter = seededRandom(x * Math.PI, z * Math.E);
+             baseHeight = 0.7 + (jitter * 0.2); 
+            } else if (tileData.type === 'Mountain') {
+                const slope = Math.max(0, tileData.elevation - 0.1);
+                const rawheight = 2.0 + Math.pow(slope * 6, 2);
+                const yshrink = 0.8;
+                baseHeight = 1.0 + (rawheight * yshrink);
+
+            } else if (tileData.type === 'Stone'){
+                baseHeight = 1.0;
+            } else if (tileData.type === 'Mud') {
+             const jitter = seededRandom(x * Math.PI, z * Math.E);
+             baseHeight = 0.7 + (jitter * 0.2);}
+            
+            mesh.position.set(x, baseHeight + 0.2, z); 
+            mesh.castShadow = true;
+            
+            scene.add(mesh);
+            plantMeshes[key] = mesh; 
+        }
+
+        function savegame() {
+            const saveData = {
+                cam: { x: camera.position.x, z: camera.position.z },
+                seed: worldseed,
+                tiles: activetiles,
+                money: coins
+            };
+            localStorage.setItem('terrasave', JSON.stringify(saveData));
+        }
+
+        function loadgame() {
+            const savestr = localStorage.getItem('terrasave'); 
+            if (savestr) {
+                const saveData = JSON.parse(savestr); 
+                worldseed = saveData.seed;
+                activetiles = saveData.tiles || {};
+                coins = saveData.money || 0;
+                if (saveData.cam && saveData.cam.x !== undefined) {
+                    camera.position.x = saveData.cam.x;
+                    camera.position.z = saveData.cam.z;
+                    const target = new THREE.Vector3(camera.position.x - 20, 0, camera.position.z - 20);
+                    camera.lookAt(target);
+                }
+            } else {
+                worldseed = Math.random();
+            }
+            noise.seed(worldseed);
+            coinText.innerText = coins;
+            const targx = Math.floor(camera.position.x - camera.position.y);
+            const targy = Math.floor(camera.position.z - camera.position.y);
+            updateWorld(targx, targy);
+
+            for (const key in activetiles) {
+                const [x, z] = key.split(',').map(Number);
+                const plant = activetiles[key];
+                spawn3DPlant(x, z, key, plant.color);
+                
+                const mesh = plantMeshes[key];
+                if (mesh && plant.growth < 100) {
+                    const scale = 0.4 + (plant.growth / 100);
+                    mesh.scale.set(scale, scale, scale);
+                } else if (mesh && plant.growth >= 100) {
+                    mesh.scale.set(1.4, 1.4, 1.4);
+                }
+            }
+        }
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let isDragging = false;
+let hasdragged = false;
+let previousMousePosition = { x: 0, y: 0 };
+
+window.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    hasdragged = false;
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        const dx = e.clientX - previousMousePosition.x;
+        const dy = e.clientY - previousMousePosition.y;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasdragged = true;
+        
+        camera.position.x -= (dx + dy) * 0.04;
+        camera.position.z += (dx - dy) * 0.04;
+        
+        const target = new THREE.Vector3(camera.position.x - camera.position.y, 0, camera.position.z - camera.position.y);
+        camera.lookAt(target);
+        
+        coordsText.innerText = `${Math.floor(camera.position.x)}, ${Math.floor(camera.position.z)}`;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    } else {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(interactableTiles);
+        
+        if (intersects.length > 0) {
+            const blockData = intersects[0].object.userData;
+            const tileData = gettileat(blockData.gridX, blockData.gridZ);
+            hoverText.innerText = `[${blockData.gridX}, ${blockData.gridZ}] Biome: ${tileData.biome} (${tileData.type}) | Moisture: ${tileData.moisture}% | Sunlight: ${tileData.sunlight}%`;
+        }
+    }
+});
+
+window.addEventListener('mouseup', (e) => {
+    isDragging = false;
+    if (hasdragged) return;
+    
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(interactableTiles);
+    
+    if (intersects.length > 0) {
+        const clickedBlock = intersects[0].object;
+        const x = clickedBlock.userData.gridX;
+        const z = clickedBlock.userData.gridZ;
+        const type = clickedBlock.userData.type;
+        const key = `${x},${z}`;
+        
+        if (!activetiles[key] && !type.includes('Water')) {
+            const toplant = catalog[currentseed];
+            if (coins >= toplant.cost) {
+                coins -= toplant.cost;
+                coinText.innerText = coins;
+                activetiles[key] = {
+                    type: toplant.type, growth: 0, idealmoist: toplant.idealmoist,
+                    biome: toplant.biome, multiplier: 1, color: toplant.color
+                };
+                spawn3DPlant(x, z, key, toplant.color);
+                savegame();
+            } else {
+                alert("Not enough Bio Coins");
+            }
+        }
+    }
+});
+
+
+window.addEventListener('wheel', (e) => {
+    const zoomSpeed = e.deltaY > 0 ? 8 : -8;
+    if (camera.position.y + zoomSpeed >= 4 && camera.position.y + zoomSpeed <= 20) {
+        camera.position.x += zoomSpeed;
+        camera.position.y += zoomSpeed;
+        camera.position.z += zoomSpeed;
+        
+        const target = new THREE.Vector3(camera.position.x - camera.position.y, 0, camera.position.z - camera.position.y);
+        camera.lookAt(target);
+    }
+});
+
+
+
+
+
+
+
+        window.addEventListener('keydown', (e) => {
+            if (e.shiftKey && e.key.toLowerCase() === 'r') {
+                localStorage.removeItem('terrasave');
+                location.reload(); 
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function tick() {
+            let needssave = false; 
+            for (const key in activetiles) {
+                const plant = activetiles[key];
+                const mesh = plantMeshes[key];
+                
+                if (plant.isdying) {
+                    if (mesh) {
+                        scene.remove(mesh);
+                        delete plantMeshes[key];
+                    }
+                    delete activetiles[key];
+                    continue;
+                }
+                
+                const [x, z] = key.split(',').map(Number);
+                const tiledata = gettileat(x, z);
+                const moistureDiff = Math.abs(tiledata.moisture - plant.idealmoist);
+                
+                if (plant.growth < 100) {
+                    if (moistureDiff < 20 && tiledata.sunlight > 50 && tiledata.biome == plant.biome) {
+                        plant.growth += 10;
+                    } else if (moistureDiff < 40 && tiledata.sunlight < 30 || tiledata.biome == plant.biome) {
+                        plant.growth += 2;
+                    } else {
+                        if (Math.random() < 0.4) {
+                            plant.type = "Desert Fern";
+                            plant.idealmoist = tiledata.moisture;
+                            plant.biome = tiledata.biome == "Desert" ? "Desert" : tiledata.biome == "Tundra" ? "Tundra" : "Rainforest";
+                            plant.multiplier = 5; 
+                            plant.color = "#f1c40f"; 
+                            plant.growth += 10; 
+                            if (mesh) mesh.material.color.set("#f1c40f");
+                        } else {
+                            plant.isdying = true;
+                            coins = Math.max(0, coins - 30);
+                            needssave = true;
+                            continue;
+                        }
+                    }
+                    
+                    if (plant.growth >= 100) plant.growth = 100;
+                    
+                    if (mesh) {
+                        const scale = 0.4 + (plant.growth / 100);
+                        mesh.scale.set(scale, scale, scale);
+                    }
+                    needssave = true;
+                } else {
+                    let earnings = plant.baseearn || 1;
+                    if (plant.multiplier > 1) {
+                        earnings *= plant.multiplier;
+                    }
+                    coins += earnings;
+                    needssave = true;
+                }
+            }
+            if (needssave) {
+                coinText.innerText = coins;
+                savegame();
+            }
+        }
+
+        let lastcamgridx = null;
+        let lastcamgridz = null;
+        
+        const chunkSlider = document.getElementById('chunk-slider');
+        const chunkDisplay = document.getElementById('chunk-display');
+
+        chunkSlider.addEventListener('input', (e) => {
+            chunkradii = parseInt(e.target.value);
+            chunkDisplay.innerText = chunkradii;
+            const targX = Math.floor(camera.position.x - camera.position.y);
+            const targZ = Math.floor(camera.position.z - camera.position.y);
+            updateWorld(targX, targZ);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const targX = Math.floor(camera.position.x - camera.position.y);
+            const targZ = Math.floor(camera.position.z - camera.position.y);
+            if (targX !== lastcamgridx || targZ !== lastcamgridz){
+                updateWorld(targX,targZ);
+                lastcamgridx = targX;
+                lastcamgridz = targZ;
+            }
+            basePlane.position.x = camera.position.x;
+            basePlane.position.y = camera.position.y;
+            const distgrd = camera.position.y * Math.sqrt(2);
+            scene.fog.near = distgrd;
+            scene.fog.far = distgrd + (chunkradii * 0.95);
+                timeofday += dayprog;
+                const sunradii = 100;
+                sunLight.position.x = targX + Math.cos(timeofday) * sunradii;
+                sunLight.position.y = Math.sin(timeofday) * sunradii;
+                sunLight.position.z = targZ + (Math.cos(timeofday) * 40);
+                sunLight.target.position.set(targX, 0, targZ); 
+                if(sunLight.position.y > 0){
+                    const sunratio = Math.min(1, sunLight.position.y / 30);
+                    sunLight.intensity = sunratio * 0.8; 
+                    ambientLight.intensity = 0.3 + (sunratio * 0.4);
+                    scene.background.lerpColors(sky2, sky, sunratio);
+                    scene.fog.color.copy(scene.background);
+                    basePlane.material.color.copy(scene.background);
+                } else{
+                    sunLight.intensity = 0;
+                    ambientLight.intensity = 0.3;
+                    scene.background = sky2;
+                    scene.fog.color.copy(sky2);
+                    basePlane.material.color.copy(sky2)
+                }
+
+
+            
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('load', () => {
+            loadgame();
+            animate();
+            setInterval(tick, 1000);
+        });
+    </script>
+</body>
+</html>
