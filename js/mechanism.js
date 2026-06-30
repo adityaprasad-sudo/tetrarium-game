@@ -38,7 +38,15 @@ function fade(audio, targetvol, dura, stopatend = false){
     }, steptime)
 
 }
-
+function safety(audio){
+    if(audio && audio.isPlaying){
+        if( audio.source !== null){
+            audio.stop()
+        }else{
+            audio.isPlaying = false
+        }
+    }
+}
 const flashlight = new THREE.SpotLight(0xffffff,2, 50, Math.PI / 6, 0.5, 1)
 flashlight.castShadow = true
 flashlight.position.set(0, 0, 0)
@@ -47,7 +55,7 @@ camera.add(flashlight.target)
 flashlight.target.position.set(0, 0, -1)
 scene.add(camera)
 const staker = []
-const lastpos = new THREE.Vector3(0, 0, 0)
+const lastpos = new THREE.Vector3(6, 0, 0)
 class cronpc { 
     constructor(scene, gltf, startx, startz) {
         this.mesh = gltf.scene;
@@ -94,14 +102,14 @@ class cronpc {
         }
         if(newstate === 'patrol' && this.currentstatee === 'chase'){
             fade(chasemu, 0, 2.5, false);
-            if(crocgrowl.isPlaying) crocgrowl.stop();
+            safety(crocgrowl)
             if(!crocideal.isPlaying) crocideal.play();
         }
-        if(newstate === 'flee' && this.currentstatee === 'flee'){
+        if(newstate === 'flee' && this.currentstatee !== 'flee'){
             fade(chasemu, 0, 2.5, true);
-            if(crocgrowl.isPlaying) crocgrowl.stop();
-            if(!crocideal.isPlaying) crocideal.stop();
-            crocrun.play()
+            safety(crocideal)
+            safety(crocgrowl)
+            if(!crocrun.isPlaying) crocrun.play();
         }
         if (this.currentstatee === 'chase' && newstate !== 'chase') {
             fade(chasemu, 0, 2.5, false);
@@ -170,9 +178,9 @@ this.currentstatee = newstate
             this.dumb(this.run, trag, true)
             return "alive"
         }
-        if (this.currentstatee === 'flee') {
-        this.currentstatee = null 
-        this.changestate('idle', 'idle')
+        if (!dayum && this.currentstatee === 'flee') {
+        safety(crocrun)
+        this.changestate('ideal', 'idle')
          }
         switch (this.currentstatee) {
             case 'idle':
@@ -426,8 +434,10 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
 
 loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocgrowl)
+    gltf.scene.add(crocideal)
+    gltf.scene.add(crocrun)
     console.log(gltf.animations)
-    crocnpc = new cronpc(scene, gltf, player.position.x, player.position.z) 
+    crocnpc = new cronpc(scene, gltf, 54.69, -152.64896) 
 }, undefined, (error) => console.error(error))
 const listen = new THREE.AudioListener()
 camera.add(listen)
@@ -452,18 +462,24 @@ loader2.load('./audio/scream.mp3', (buffer) => {
     crocgrowl.setMaxDistance(200)
     crocgrowl.setDistanceModel('linear')
     crocgrowl.setLoop(true)
-    crocgrowl.setVolume(5)
+    crocgrowl.setVolume(2)
 })
 const crocideal = new THREE.PositionalAudio(listen)
 loader2.load('./audio/growl.mp3', (buffer) => {
     crocideal.setBuffer(buffer)
+    crocgrowl.setRefDistance(10)
+    crocgrowl.setMaxDistance(200)
+    crocgrowl.setDistanceModel('linear')
     crocideal.setLoop(true)
-    crocideal.setVolume(0.5)
+    crocideal.setVolume(5)
 })
 const crocrun = new THREE.PositionalAudio(listen)
 loader2.load('./audio/meme.mp3', (buffer) => {
     crocrun.setBuffer(buffer)
-    crocrun.setVolume(10)
+    crocrun.setRefDistance(10)
+    crocrun.setMaxDistance(200)
+    crocrun.setDistanceModel('linear')
+    crocrun.setVolume(1)
 })
 
 window.addEventListener('resize', () => {
@@ -512,13 +528,14 @@ loader.load('./models/powerball.glb', (gltf) => {
     })
 })
 let timer = 0
-const musicdayum = new Audio('./audio/dayummode.mp3');
+const musicdayum = new Audio('./audio/dayummode3.mp3');
 const ui = document.getElementById('timothy')
 
 function anim() {
     requestAnimationFrame(anim);
     const delta = time.getDelta();
     player.update()
+    
     for(let i = terreriums.length -1; i >= 0; i--){
         let item = terreriums[i]
         const dx = player.position.x - item.position.x
@@ -560,9 +577,15 @@ function anim() {
     if (crocnpc) { 
         const status = crocnpc.update(delta, player.position)
         
-        if(status === "dead"){
-        crocnpc = null
-        console.log("crocodile ded :)")
+        if (status === "dead") {
+            crocnpc = null;
+            console.log("crocodile ded :)");
+            
+            if (typeof crocgrowl !== 'undefined') safety(crocgrowl)
+            
+            if (typeof chasemu !== 'undefined') {
+                fade(chasemu, 0, 1.5, false);
+            }
         }
     }
     
