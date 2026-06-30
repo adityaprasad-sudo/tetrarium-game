@@ -14,6 +14,30 @@ let crocnpc = null
 
 const ambientlight = new THREE.AmbientLight(0xFFFFFF, 0.5);
 scene.add(ambientlight)
+function fade(audio, targetvol, dura, stopatend = false){
+    if(audio.fadeInterval) clearInterval(audio.fadeInterval);
+    if(!audio.isPlaying && targetvol >0){
+        audio.setVolume(0)
+        audio.play()
+    }
+    const startvol = audio.getVolume()
+    const steps = 30
+    const steptime = (dura * 1000) /steps
+    const volstep = (targetvol - startvol) / steps
+    let current = 0
+    audio.fadeInterval = setInterval(() => {
+        current++
+        let Mathvol = startvol + (volstep * current)
+        if(Mathvol < 0 ) Mathvol = 0;
+        audio.setVolume(Mathvol)
+        if(current >= steps){
+            clearInterval(audio.fadeInterval)
+            audio.setVolume(targetvol)
+            if(stopatend) audio.pause()
+        }
+    }, steptime)
+
+}
 
 const flashlight = new THREE.SpotLight(0xffffff,2, 50, Math.PI / 6, 0.5, 1)
 flashlight.castShadow = true
@@ -64,6 +88,24 @@ class cronpc {
     
     changestate(newstate, actionName) {
         if (this.currentstatee === newstate || !this.actions[actionName]) return
+        if(newstate === 'chase' && this.currentstatee !== 'chase'){
+            fade(chasemu, 0.6, 0.5, false);
+            if(!crocgrowl.isPlaying) crocgrowl.play();
+        }
+        if(newstate === 'patrol' && this.currentstatee === 'chase'){
+            fade(chasemu, 0, 2.5, false);
+            if(crocgrowl.isPlaying) crocgrowl.stop();
+            if(!crocideal.isPlaying) crocideal.play();
+        }
+        if(newstate === 'flee' && this.currentstatee === 'flee'){
+            fade(chasemu, 0, 2.5, true);
+            if(crocgrowl.isPlaying) crocgrowl.stop();
+            if(!crocideal.isPlaying) crocideal.stop();
+            crocrun.play()
+        }
+        if (this.currentstatee === 'chase' && newstate !== 'chase') {
+            fade(chasemu, 0, 2.5, false);
+        }
         this.currentstatee = newstate
         const prevstate = this.currentaction
         const newact = this.actions[actionName]
@@ -141,6 +183,7 @@ this.currentstatee = newstate
                 this.dumb(this.walkspeed);
                 if (Math.random() < 0.005) this.changestate('idle', 'idle')  
                 if (distpl < this.radius) this.changestate('chase', 'run')
+                    if(Math.random() < 0.5 && !crocideal.isPlaying) crocideal.play();
                 break
             case 'chase':
                   
@@ -221,8 +264,25 @@ this.currentstatee = newstate
         if(checkcent.length === 0){ this.mesh.translateZ(speed)}
 }
 }
+function echo(audio){
+    audio.currentTime = 0
+    audio.volume = 1
+    audio.play()
+    setTimeout(() => {
+        const echo1 = audio.cloneNode()
+        echo1.volume = 0.5
+        echo1.play().catch(e => {})
+    }, 250)
+    setTimeout(() => {
+        const echo2 = audio.cloneNode()
+        echo2.volume = 0.1
+        echo2.play().catch(e => {})
+    }, 500)
+}
 const terreriums = []
 let earned = 0
+const footsteps2 = new Audio('./audio/walk2.mp3')
+const footsteps = new Audio('./audio/walk.mp3')
 const player = {
     
     position: new THREE.Vector3(0, 0, 0),
@@ -233,6 +293,9 @@ const player = {
     gravity: -0.05,
     jumpforce: 0.6,
     ground: false,
+    dis: 0,
+    alter: true,
+    timelas:0,
     key: {
         w: false,
         a: false,
@@ -253,6 +316,8 @@ const player = {
             }
         });
         window.addEventListener('keydown', (e) => {
+            
+
             if (e.key.toLowerCase() === 'w') this.key.w = true
             if (e.key.toLowerCase() === 'a') this.key.a = true
             if (e.key.toLowerCase() === 's') this.key.s = true
@@ -288,7 +353,23 @@ this.position.x += dx
         this.position.z += dz
             }
         }
-        
+        if(this.ground){
+            this.dis += dez
+            if(this.dis > 6){
+                this.dis = 0
+                const curren = performance.now()
+                this.timelas = curren
+                if(curren - this.timelas > 450){
+                    
+                echo(footsteps)}
+                else{
+                    echo(footsteps2)
+                }
+                this.alter = !this.alter
+            }
+        }else{
+            this.dis = 0
+        }
         
 
         const rayorg = new THREE.Vector3(this.position.x, this.position.y + 1, this.position.z)
@@ -344,9 +425,46 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
 })
 
 loader.load('./models/crocodile.glb', (gltf) => {
+    gltf.scene.add(crocgrowl)
     console.log(gltf.animations)
     crocnpc = new cronpc(scene, gltf, player.position.x, player.position.z) 
 }, undefined, (error) => console.error(error))
+const listen = new THREE.AudioListener()
+camera.add(listen)
+const ambient = new THREE.Audio(listen)
+const chasemu = new THREE.Audio(listen)
+const loader2 = new THREE.AudioLoader()
+loader2.load('./audio/ambience.mp3', (buffer) => {
+    ambient.setBuffer(buffer)
+    ambient.setLoop(true)
+    ambient.setVolume(0.5)
+    ambient.play()
+})
+loader2.load('./audio/chase.mp3', (buffer) => {
+    chasemu.setBuffer(buffer)
+    chasemu.setLoop(true)
+    chasemu.setVolume(0.5)
+})
+const crocgrowl = new THREE.PositionalAudio(listen)
+loader2.load('./audio/scream.mp3', (buffer) => {
+    crocgrowl.setBuffer(buffer)
+    crocgrowl.setRefDistance(10)
+    crocgrowl.setMaxDistance(200)
+    crocgrowl.setDistanceModel('linear')
+    crocgrowl.setLoop(true)
+    crocgrowl.setVolume(5)
+})
+const crocideal = new THREE.PositionalAudio(listen)
+loader2.load('./audio/growl.mp3', (buffer) => {
+    crocideal.setBuffer(buffer)
+    crocideal.setLoop(true)
+    crocideal.setVolume(0.5)
+})
+const crocrun = new THREE.PositionalAudio(listen)
+loader2.load('./audio/meme.mp3', (buffer) => {
+    crocrun.setBuffer(buffer)
+    crocrun.setVolume(10)
+})
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight
@@ -427,7 +545,7 @@ function anim() {
             power.splice(i, 1)
             scene.remove(item)
            musicdayum.currentTime = 0;
-           musicdayum.play();
+           musicdayum.play()
         }
     }
     if(dayum){
