@@ -1,5 +1,5 @@
 
-
+let gamestart = false
 const scene = new THREE.Scene()
 scene.background = new THREE.Color('#050505');
 scene.fog = new THREE.FogExp2('#050505', 0.04)
@@ -136,7 +136,6 @@ this.currentstatee = newstate
         const down = new THREE.Vector3(0, -1, 0)
         const raycast = new THREE.Raycaster(ray, down)
         const hit = raycast.intersectObjects(collide, true)
-        
         let height = -100;
         if (hit.length > 0) height = hit[0].point.y
         
@@ -150,11 +149,22 @@ this.currentstatee = newstate
     }
     
     update(chatime, pos) {
+        console.log('state:', this.currentstatee, 'dayum:', dayum, 'ishide:', player.ishide)
         if (this.mixer) this.mixer.update(chatime)
         this.applyGravity()
         const dx = pos.x - this.mesh.position.x
         const dz = pos.z - this.mesh.position.z
-        const distpl = Math.sqrt(dx * dx + dz * dz)
+        let distpl = Math.sqrt(dx * dx + dz * dz)
+        if(player.ishide){
+            distpl = 9999
+            if(this.currentstatee === 'chase' || this.currentstatee === 'attack'){
+                this.changestate('patrol', 'walk' )
+                this.mesh.rotateY(Math.PI)
+            }
+            this.dumb(this.walkspeed)
+            
+                return "alive"
+        }
         if(dayum){
             if(distpl < 4){
                 scene.remove(this.mesh);
@@ -180,7 +190,7 @@ this.currentstatee = newstate
         }
         if (!dayum && this.currentstatee === 'flee') {
         safety(crocrun)
-        this.changestate('ideal', 'idle')
+        this.changestate('idle', 'idle')
          }
         switch (this.currentstatee) {
             case 'idle':
@@ -232,9 +242,10 @@ this.currentstatee = newstate
                     const stalkches = new THREE.Vector3(stalk.x, stalk.y, stalk.z )
                     const dirsta = new THREE.Vector3().subVectors(stalkches, chesy).normalize()
                     const dissta = chesy.distanceTo(stalkches)
-                    if(dissta > 0.5) {
+                    if(dissta > 0.5 && dissta < 30) {
                     const losray = new THREE.Raycaster(chesy, dirsta, 0, dissta)
                     if(losray.intersectObjects(collide, true).length === 0){
+                        
                         dir = dirsta
                         targ = true
                         break
@@ -269,7 +280,9 @@ this.currentstatee = newstate
         this.mesh.updateMatrixWorld()
         const fidir = new THREE.Vector3(0,0,1).applyQuaternion(this.mesh.quaternion).normalize()
         const checkcent = new THREE.Raycaster(chesy, fidir, 0, speed +3).intersectObjects(collide, true)
-        if(checkcent.length === 0){ this.mesh.translateZ(speed)}
+        if(checkcent.length === 0){ this.mesh.translateZ(speed)}else{
+            this.mesh.rotateY((Math.PI/2) + (Math.random() * 0.5))
+        }
 }
 }
 function echo(audio){
@@ -302,6 +315,8 @@ const player = {
     jumpforce: 0.6,
     ground: false,
     dis: 0,
+    ishide: false,
+    actloc: null,
     alter: true,
     timelas:0,
     key: {
@@ -331,6 +346,19 @@ const player = {
             if (e.key.toLowerCase() === 's') this.key.s = true
             if (e.key.toLowerCase() === 'd') this.key.d = true
             if (e.key === ' ') this.key.space = true; 
+            if(e.key.toLowerCase() === 'e'){
+                if(this.ishide){
+                    this.ishide = false
+                    const forw = new THREE.Vector3(0,0,-2).applyAxisAngle(new THREE.Vector3(0,1,0), this.yaw)
+                    this.position.add(forw)
+                }else if(this.actloc){
+                    this.ishide = true
+                    staker.length = 0
+                    const truepos = new THREE.Vector3()
+                    this.actloc.getWorldPosition(truepos)
+                    this.position.set(truepos.x, this.position.y, truepos.z)
+                }
+            }
         });
         window.addEventListener('keyup', (e) => {
             if (e.key.toLowerCase() === 'w') this.key.w = false
@@ -342,6 +370,24 @@ const player = {
     },
     
     update: function() {
+        this.actloc = null
+        for(let locker of hidespo){
+            const truepos = new THREE.Vector3()
+            locker.getWorldPosition(truepos)
+            if(this.position.distanceTo(truepos) < 3){
+                this.actloc = locker
+                break
+            }
+        }
+        if(this.ishide){
+            this.key.w = false
+            this.key.s = false
+            this.key.a = false
+            this.key.d = false
+            camera.position.copy(this.position)
+            camera.rotation.set(this.pitch, this.yaw, 0 , 'YXZ')
+            return
+        }
         let dx = 0, dz = 0;
         if (this.key.w) { dx -= Math.sin(this.yaw) * this.speed; dz -= Math.cos(this.yaw) * this.speed }
         if (this.key.s) { 
@@ -411,7 +457,7 @@ this.position.x += dx
 };
 
 player.init();
-
+const hidespo = []
 const loader = new THREE.GLTFLoader();
 loader.load('./models/backrooms_level_0.glb', (gltf) => {
     const mpmodel = gltf.scene
@@ -423,13 +469,25 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
     mpmodel.position.y = 0
     mpmodel.traverse((child) => {
         if (child.isMesh) {
-            child.castShadow = true
+            child.castShadow =  false
             child.receiveShadow = true
+            if(child.name.includes('collide')){
+                child.visible = false
+
+                collide.push(child)
+                hidespo.push(child)
+
+            }else if( child.name.includes('ignore')){
+                child.castShadow = false
+                
+            }
+            else{
+                collide.push(child)
+            }
         }
     })
 
     scene.add(mpmodel)
-    collide.push(mpmodel)
 })
 
 loader.load('./models/crocodile.glb', (gltf) => {
@@ -437,7 +495,7 @@ loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
     console.log(gltf.animations)
-    crocnpc = new cronpc(scene, gltf, 54.69, -152.64896) 
+    crocnpc = new cronpc(scene, gltf, 0, 0) 
 }, undefined, (error) => console.error(error))
 const listen = new THREE.AudioListener()
 camera.add(listen)
@@ -528,11 +586,12 @@ loader.load('./models/powerball.glb', (gltf) => {
     })
 })
 let timer = 0
-const musicdayum = new Audio('./audio/dayummode3.mp3');
+const musicdayum = new Audio('./audio/dayummode.mp3');
 const ui = document.getElementById('timothy')
 
 function anim() {
     requestAnimationFrame(anim);
+    if(!gamestart) return;
     const delta = time.getDelta();
     player.update()
     
@@ -574,6 +633,13 @@ function anim() {
     musicdayum.pause();
     }
 }
+if(!player.ishide && player.position.distanceTo(lastpos) > 2){
+    staker.push(player.position.clone())
+    lastpos.copy(player.position)
+    if(staker.length > 20){
+        staker.shift()
+    }
+}
     if (crocnpc) { 
         const status = crocnpc.update(delta, player.position)
         
@@ -591,12 +657,11 @@ function anim() {
     
     renderer.render(scene, camera)
     
-    if(player.position.distanceTo(lastpos) > 2){
-        staker.push(player.position.clone())
-        lastpos.copy(player.position)
-        if(staker.length > 20){
-            staker.shift()
-        }
-    }
+    
+}
+window.startgame = function(){
+    gamestart = true
+    time.start()
+    document.body.requestPointerLock
 }
 anim()
