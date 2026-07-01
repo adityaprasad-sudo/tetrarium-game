@@ -10,6 +10,62 @@
             background-color: #050505; 
             font-family: 'Courier New', Courier, monospace; }
         canvas { display: block; }
+        .loadingbarcunt{
+            width: 50%;
+            height: 10px;
+            background-color: #222;
+            border: 1px solid #444;
+            margin-top: 20px;
+        }
+        #staminacunt{
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 8px;
+            background-color: rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        #staminabar{
+            width: 100%;
+            height: 100%;
+            background-color: #ddd;
+            transition: width 0.1s linear, background-color 0.3s;
+        }
+        #bodycam{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            background: radial-gradient(circle, rgba(0,0,0,0) 50%,rgba(0,0,0,0.9) 100%);
+            z-index: 50;
+        }
+        #loadingbar{
+            width: 0%;
+            height: 100%;
+            background-color: #8b0000;
+            transition: width 0.3s;
+        }
+        .settingmenu{
+            background-color:rgba(5,5,5,0.95)
+        }
+        .settinggrp{
+            display: flex;
+            flex-direction: column;
+            width: 300px;
+            margin-bottom: 30px;
+            color: #888;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        input[type=range]{
+            accent-color: #8b0000;
+            margin-top: 10px;
+            cursor: pointer;
+        }
         .uilay{
             position: absolute;
             top: 0;
@@ -79,19 +135,56 @@
         </div>
     </div>
     <div id = "loadingscr" class="uilay" style="display: none">
-        <h2 class="loadingtxt">LOADING BACKROOMS</h2>
-        <div class="spinner"></div>
+        <h2 class="loadingtxt" id="loadingtxt">LOADING BACKROOMS</h2>
+        <div class="loadingbarcunt">
+            <div id = "loadingbar"></div>
+        </div>
     </div>
+    <div id="settingmenu" class = "uilay" style="display:none">
+        <h1 class="title" style="font-size:3rem">SETTINGS</h1>
+        <div class="settinggrp">
+            <label>Mouse Sensitivity: <span id="mousesens">50</span></label>
+            <input type="range" id="mousesensin" min="1" max="100" value="50">
+        </div>
+        <div class="settinggrp">
+            <label>Master Volume: <span id="mastervolume">50</span></label>
+            <input type="range" id="mastervolumerange" min="0" max="100" value="50">
+        </div>
+        <div class ="settinggrp">
+            <label>Resolution: <span id="resval">100</span>%</label>
+            <input type="range" id="resolutionrange" min="40" max="100" value="100">
+        </div>
+        <div class="settinggrp">
+            <label>Render Distance: <span id="distval">100</span>%</label>
+            <input type="range" id="renderdistancerange" min="40" max="100" value="100">
+        </div>
+        <div class="settinggrp">
+            <label>Bloom Intensity: <span id="bloomval">0</span>%</label>
+            <input type="range" id="bloomrange" min="0" max="2" step="0.1" value="0">
+        </div>
+        <button id = "backbtn" style="margin-top: 40px">BACK</button>
+
+    </div>
+    
     <div id = "hud" class="uilay" style="display:none">
         <h1 id="timothy" style = "display:none; color: red; ">GOD MODE: </h1>
+        <div id="staminacunt">
+            <div id="staminabar"></div>
+            <div id="bodycam"></div>
     </div>
-
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/perlin-js/1.0.0/perlin.js"></script>
-    
-    <script type = "module" src="js/mechanism.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script  src="js/mechanism.js"></script>
     <script  src="js/menu.js"></script>
 </body>
 </html>

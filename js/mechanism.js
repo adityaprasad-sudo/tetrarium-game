@@ -1,17 +1,40 @@
 
 let gamestart = false
 const scene = new THREE.Scene()
+THREE.DefaultLoadingManager.onProgress = function (url, loaded, total) {
+    const prog = loaded / total * 100
+    const loadingbar = document.getElementById('loadingbar')
+    if(loadingbar) loadingbar.style.width = prog + '%'
+
+}
+THREE.DefaultLoadingManager.onLoad = function (url, loaded, total) {
+    const btnplay = document.getElementById('btnplay')
+    if(btnplay){
+        btnplay.disabled = false
+        btnplay.innerText = 'PLAY'
+    }
+}
 scene.background = new THREE.Color('#050505');
 scene.fog = new THREE.FogExp2('#050505', 0.04)
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true })
+const comp = new THREE.EffectComposer(renderer)
+comp.addPass(new THREE.RenderPass(scene, camera))
+const bloompass =new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.1)   
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement)
 
 const time = new THREE.Clock()
 const collide = []
 let crocnpc = null
-
+window.updategraph = function(settings){
+    renderer.setPixelRatio(window.devicePixelRatio *(settings.resolution/100))
+    camera.far = settings.renderdistance
+    camera.updateProjectionMatrix()
+    if(bloompass){
+        bloompass.strength = settings.bloomintensity
+    }
+}
 const ambientlight = new THREE.AmbientLight(0xFFFFFF, 0.5);
 scene.add(ambientlight)
 function fade(audio, targetvol, dura, stopatend = false){
@@ -311,6 +334,11 @@ const player = {
     yaw: 0,
     pitch: 0,
     speed: 0.15,
+    walkspeed: 0.15,
+    sprintspeed: 0.22,
+    stamina: 100,
+    maxstamina: 100,
+    bob: 0,
     gravity: -0.05,
     jumpforce: 0.6,
     ground: false,
@@ -333,8 +361,9 @@ const player = {
         });
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement) {
-                this.yaw -= e.movementX * 0.002;
-                this.pitch -= e.movementY * 0.002;
+                const sens = window.gamesettings.sensitivity
+                this.yaw -= e.movementX * sens;
+                this.pitch -= e.movementY * sens;
                 this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch));
             }
         });
@@ -345,6 +374,7 @@ const player = {
             if (e.key.toLowerCase() === 'a') this.key.a = true
             if (e.key.toLowerCase() === 's') this.key.s = true
             if (e.key.toLowerCase() === 'd') this.key.d = true
+            if (e.key === 'Shift') this.key.shift = true;
             if (e.key === ' ') this.key.space = true; 
             if(e.key.toLowerCase() === 'e'){
                 if(this.ishide){
@@ -365,11 +395,12 @@ const player = {
             if (e.key.toLowerCase() === 'a') this.key.a = false;
             if (e.key.toLowerCase() === 's') this.key.s = false
             if (e.key.toLowerCase() === 'd') this.key.d = false;
+            if (e.key === 'Shift') this.key.shift = false;
             if (e.key === ' ') this.key.space = false
         });
     },
     
-    update: function() {
+    update: function(delta) {
         this.actloc = null
         for(let locker of hidespo){
             const truepos = new THREE.Vector3()
@@ -406,6 +437,23 @@ const player = {
 this.position.x += dx
         this.position.z += dz
             }
+        }
+        const ismove = (this.key.w || this.key.a || this.key.s || this.key.d)
+        if(this.key.shift && ismove && this.stamina > 0 && !this.ishide){
+            this.speed = this.sprintspeed
+            this.stamina -= 25*delta
+        }else{
+            this.speed = this.walkspeed
+            if(this.stamina < this.maxstamina){
+                this.stamina += 15*delta
+            }
+        }
+        this.stamina = Math.max(0, Math.min(this.maxstamina, this.stamina))
+        const stambar = document.getElementById('staminabar')
+        if(stambar){
+            stambar.style.width = (this.stamina / this.maxstamina * 100) + '%'
+            if(this.stamina < 15) stambar.style.backgroundColor = '#8b0000';
+            else stambar.style.backgroundColor = '#ddd'
         }
         if(this.ground){
             this.dis += dez
@@ -450,7 +498,14 @@ this.position.x += dx
             this.velocity.y = this.jumpforce
             this.ground = false;
         }
-        
+        if(ismove && this.ground && !this.ishide){
+            const bobspeed = (this.speed === this.sprintspeed) ? 18:12;
+            const bobhieght = (this.speed === this.sprintspeed) ? 0.15:0.06;
+            this.bob += delta * bobspeed
+            camera.position.y += Math.sin(this.bob) *bobhieght
+        } else{
+            this.bob = 0
+        }
         camera.position.copy(this.position)
         camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ')
     }
@@ -471,6 +526,12 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
         if (child.isMesh) {
             child.castShadow =  false
             child.receiveShadow = true
+            if(child.name.toLowerCase().includes('object_6')){
+                child.material = child.material.clone()
+                child.material.emissiveMap = child.material.map
+                child.material.emissive = new THREE.Color(0xffffff)
+                child.material.emissiveIntensity = 2
+            }
             if(child.name.includes('collide')){
                 child.visible = false
 
@@ -499,6 +560,9 @@ loader.load('./models/crocodile.glb', (gltf) => {
 }, undefined, (error) => console.error(error))
 const listen = new THREE.AudioListener()
 camera.add(listen)
+window.updateMasterVolume = function(vol){
+    listen.setMasterVolume(vol)
+}
 const ambient = new THREE.Audio(listen)
 const chasemu = new THREE.Audio(listen)
 const loader2 = new THREE.AudioLoader()
@@ -594,7 +658,6 @@ function anim() {
     if(!gamestart) return;
     const delta = time.getDelta();
     player.update()
-    
     for(let i = terreriums.length -1; i >= 0; i--){
         let item = terreriums[i]
         const dx = player.position.x - item.position.x
@@ -655,7 +718,8 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
         }
     }
     
-    renderer.render(scene, camera)
+    player.update(delta)
+    comp.render()
     
     
 }
