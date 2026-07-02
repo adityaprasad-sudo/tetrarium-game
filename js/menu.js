@@ -1,7 +1,7 @@
 const mainmenu = document.getElementById('menu')
 const settingsmenu = document.getElementById('settingmenu')
 const loaidngcr = document.getElementById('loadingscr')
-const hud = document.getElementById('hud')
+const hud1 = document.getElementById('hud')
 const btnplay = document.getElementById('btnplay')
 const btnsettings = document.getElementById('settings')
 const backbtnsett = document.getElementById('backbtn')
@@ -10,7 +10,7 @@ btnplay.addEventListener('click', () =>{
     loaidngcr.style.display = 'flex'
     setTimeout(() => {
         loaidngcr.style.display = 'none'
-        hud.style.display = 'flex'
+        hud1.style.display = 'flex'
         if(typeof window.startgame === 'function') window.startgame()
     }, 5000)
 })

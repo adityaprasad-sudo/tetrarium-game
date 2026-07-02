@@ -1,6 +1,95 @@
 
 let gamestart = false
 const scene = new THREE.Scene()
+class floatingshit{
+                        constructor(){
+                                this.layer = document.getElementById('hudlay')
+                                this.healthbar = document.getElementById('healthbar')
+                                this.staminabar = document.getElementById('staminabar')
+                                this.healthpan = document.getElementById('healthpan')
+                                this.healthstat = document.getElementById('healthstat')
+                                this.staminapan = document.getElementById('staminapan')
+                                this.staminastat = document.getElementById('staminastat')
+                                this.time = 0 
+                                this.x = 0
+                                this.y = 0
+                                this.rotx = 0
+                                this.roty = 0
+                                this.targrotx = 0
+                                this.targroty = 0
+                                this.health = 100
+                                this.maxstamia =100
+                                this.maxheath = 100
+                                this.staminalevel = 100
+                                this.init()
+                        }
+                        init(){
+                                document.addEventListener('mousemove', (e) => {
+                                        this.x = (e.clientX / window.innerWidth) * 2 - 1
+                                        this.y = (e.clientY / window.innerHeight) * 2 - 1
+                                })
+                                this.anim()
+                        }
+                        healthup(amount){
+                                this.health = Math.max(0, Math.min(this.maxheath, this.health + amount))
+                                this.healthbar.style.width = `${this.health / this.maxheath * 100}%`
+                                if(this.health <= 25){
+                                        this.healthpan.classList.add('critical')
+                                        this.healthpan.classList.add('glitchy')
+                                        this.healthstat.innerText = 'STATUS: Critical Failure'
+                                }else if(this.health <= 50){
+                                        this.healthpan.classList.remove('critical')
+                                        this.healthpan.classList.add('glitchy')
+                                        this.healthstat.innerText = 'STATUS: Compromised'
+                                }else{
+                                        this.healthpan.classList.remove('critical')
+                                        this.healthpan.classList.remove('glitchy')
+                                        this.healthstat.innerText = 'STATUS: Normal'
+                                }
+                        }
+                        stamina(delta, sprint){
+                                if(sprint && this.staminalevel > 0){
+                                        this.staminalevel -= 30 * delta
+                                        this.staminastat.innerText = 'STATUS: Sprinting'
+                                        this.layer.style.filter = `blur(${Math.random() * 2}px)`
+
+                                }else{
+                                        if(this.staminalevel < this.maxstamia){
+                                                this.staminalevel += 15 * delta
+                                        }
+                                        this.staminastat.innerText = 'STATUS: Normal'
+                                        this.layer.style.filter = `blur(0px)`
+                                }
+                                this.staminalevel = Math.max(0, Math.min(this.maxstamia, this.staminalevel))
+                                this.staminabar.style.width = `${this.staminalevel / this.maxstamia * 100}%`
+                                if(this.staminalevel < 20){
+                                        this.staminabar.style.backgroundColor = '#ccaa00'
+
+                                }else {
+                                        this.staminabar.style.backgroundColor = ''
+                                }
+                        }
+                        floatphy(delta){
+                                this.time += delta
+                                this.targrotx = (this.x * 35)
+                                this.targroty = -(this.y * 35)
+                                this.rotx += ((this.targrotx - this.rotx) * 0.1)
+                                this.roty += ((this.targroty - this.roty) * 0.1)
+                                this.layer.style.transform = `translate3d(0px,0px, 0px) rotateX(${this.rotx}deg) rotateY(${this.roty}deg)`;
+                        }
+
+                        
+                        anim(lastimothy = performance.now()){
+                                requestAnimationFrame((time) => {
+                                        const delta = (time - lastimothy) / 1000
+                                        this.floatphy(delta)
+                                        this.stamina(delta, window.sprinting)
+                                        this.anim(time)
+                                })
+                        }
+                }
+
+const playerhud = new floatingshit()
 THREE.DefaultLoadingManager.onProgress = function (url, loaded, total) {
     const prog = loaded / total * 100
     const loadingbar = document.getElementById('loadingbar')
@@ -360,13 +449,17 @@ const player = {
             document.body.requestPointerLock();
         });
         document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement) {
-                const sens = window.gamesettings.sensitivity
-                this.yaw -= e.movementX * sens;
-                this.pitch -= e.movementY * sens;
-                this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch));
-            }
-        });
+    if(document.pointerLockElement){
+        const sens = window.gamesettings.sensitivity
+        this.yaw -= e.movementX * sens
+        this.pitch -= e.movementY * sens
+        this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch))
+        playerhud.x -= e.movementX * 0.015
+        playerhud.y -= e.movementY * 0.015
+        playerhud.x = Math.max(-1, Math.min(1, playerhud.x))
+        playerhud.y = Math.max(-1, Math.min(1, playerhud.y))
+    }
+})
         window.addEventListener('keydown', (e) => {
             
 
@@ -449,12 +542,7 @@ this.position.x += dx
             }
         }
         this.stamina = Math.max(0, Math.min(this.maxstamina, this.stamina))
-        const stambar = document.getElementById('staminabar')
-        if(stambar){
-            stambar.style.width = (this.stamina / this.maxstamina * 100) + '%'
-            if(this.stamina < 15) stambar.style.backgroundColor = '#8b0000';
-            else stambar.style.backgroundColor = '#ddd'
-        }
+        
         if(this.ground){
             this.dis += dez
             if(this.dis > 6){
@@ -657,7 +745,13 @@ function anim() {
     requestAnimationFrame(anim);
     if(!gamestart) return;
     const delta = time.getDelta();
-    player.update()
+    playerhud.x *= 0.9
+    playerhud.y *= 0.9
+    playerhud.floatphy(delta)
+    playerhud.stamina(delta, player.key.shift)
+    playerhud.floatphy(delta)
+    playerhud.stamina(delta, player.key.shift)
+    
     for(let i = terreriums.length -1; i >= 0; i--){
         let item = terreriums[i]
         const dx = player.position.x - item.position.x
