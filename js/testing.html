@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HUD testing</title>
+        <style>
+                body {
+                        margin: 0;
+                        overflow: hidden;
+                        background-color: #050505;
+                        color: #20C20E;
+                        font-family: 'Courier New', Courier, monospace;
+                }
+                #somebg{
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        background: radial-gradient(circle, #1a1a1a 0%, #000000 100%);
+                        z-index: 1;
+                }
+                #hudcunt{
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        z-index: 10;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: flex-end;
+                        padding: 50px; box-sizing:border-box;
+                }
+                #hudlay{
+                        width: 100%;
+                        height: 100%;
+                        position: relative;
+                        transform-style: perserve-3d;
+                }
+                .hudpan{
+                        position: absolute;
+                        background: rgba(0,15,0,0.4);
+                        border: 2px solid #20C20E;
+                        box-shadow: 0 0 15px rgba(32, 194, 14, 0.3), inset 0 0 20px rgba(32, 194, 14, 0.1);
+                        padding: 20px;
+                        border-radius: 5px;
+                        backdrop-filter: blur(2px);
+
+                }
+                #healthpan{
+                       bottom: 0;
+                       left: 0;
+                       width: 250px; 
+                }
+                #staminapan{
+                        top: 0;
+                        right: 0;
+                        width: 250px;
+                }
+                h2{margin: 0 0 10px 0;  font-size: 1.2rem; letter-spacing: 3px; text-shadow: 0 0 8px #20C20E; }
+                .stattxt{font-size: 1.5rem; opacity: 0.8; margin-bottom: 5px;}
+                .barbg{
+                        width: 100%;
+                        height: 15px;
+                        background: rgba(32, 194, 14, 0.1);
+                        border: 1px solid rgba(32, 194, 14, 0.5);
+                        position: relative;
+                        overflow: hidden;
+                }
+                .barfill{
+                        height: 100%;
+                        background: #20C20E;
+                        box-shadow: 0 0 10px #20C20E;
+                        transition: width 0.1s linear, background-color 0.3s;
+                }
+                #hudcunt::before{
+                        content: '';
+                        display: block;
+                        right:0;
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        z-index: 100;
+                        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+                        background-size: 100% 2px, 3px 100%;
+                        pointer-events: none;
+                }
+                .glitchy{
+                        animation: glitch 0.2s cubic-bezier(.25, .46, .45, .94) both infinite;
+                }
+                @keyframes glitch{
+                        0% { transform: translate(0) }
+            20% { transform: translate(-2px, 1px) }
+            40% { transform: translate(-1px, -1px) }
+            60% { transform: translate(2px, 1px) }
+            80% { transform: translate(1px, -1px) }
+            100% { transform: translate(0) }
+                }
+                @keyframes criticalPulse {
+                        0% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); border-color: #ff0000; }
+                 50% { box-shadow: 0 0 30px rgba(255, 0, 0, 0.8); border-color: #ff3333; }
+                100% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); border-color: #ff0000; }
+                }
+                .critical{
+                        animation: criticalPulse 1s infinite; color: #ff3333; text-shadow: 0 0 8px #ff0000;
+                }
+                .critical .barfill { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
+                #controls { position: absolute; top: 20px; left: 20px; z-index: 200; color: white; background: #222; padding: 10px; border: 1px solid #555; pointer-events: auto; }
+            button { background: #444; color: white; border: none; padding: 5px 10px; cursor: pointer; margin: 2px; }
+           button:hover { background: #666; }
+        </style>
+</head>
+<body>
+        <div id="somebg"></div>
+        <div id="controls">
+                <button id="btndam">chiggadying</button>
+                <button id="btnheal">chiggaheal</button>
+                <button id="btnspint" onmousedown="sprinting = true" onmouseup="sprinting = false">hold it chigga</button>
+        </div>
+        <div id = "hudcunt">
+                <div id = "hudlay">
+                        <div id = "healthpan" class="hudpan">
+                                <h2>SYS_HEALTH</h2>
+                                <div class="stattxt" id="healthstat">STATUS: Normal</div>
+                                <div class="barbg">
+                                        <div class="barfill" id="healthbar" style="width: 100%;"></div>
+                                </div>
+                        </div>
+                        <div id="staminapan" class="hudpan">
+                                <h2>SYS_STAMINA</h2>
+                                <div class="stattxt" id="staminastat">STATUS: Normal</div>
+                                <div class="barbg">
+                                        <div class="barfill" id="staminabar" style="width: 100%;"></div>
+                                </div>
+                        </div>
+                </div>
+        </div>
+        <canvas id="canvas"></canvas>
+        <script>
+                class floatingshit{
+                        constructor(){
+                                this.layer = document.getElementById('hudlay')
+                                this.healthbar = document.getElementById('healthbar')
+                                this.staminabar = document.getElementById('staminabar')
+                                this.healthpan = document.getElementById('healthpan')
+                                this.healthstat = document.getElementById('healthstat')
+                                this.staminapan = document.getElementById('staminapan')
+                                this.staminastat = document.getElementById('staminastat')
+                                this.time = 0 
+                                this.x = 0
+                                this.y = 0
+                                this.targrotx = 0
+                                this.targroty = 0
+                                this.curotx = 0
+                                this.curoty = 0
+                                this.health = 100
+                                this.maxstamia =100
+                                this.maxheath = 100
+                                this.staminalevel = 100
+                                this.init()
+                        }
+                        init(){
+                                document.addEventListener('mousemove', (e) => {
+                                        this.x = (e.clientX / window.innerWidth) * 2 - 1
+                                        this.y = (e.clientY / window.innerHeight) * 2 - 1
+                                })
+                                this.anim()
+                        }
+                        healthup(amount){
+                                this.health = Math.max(0, Math.min(this.maxheath, this.health + amount))
+                                this.healthbar.style.width = `${this.health / this.maxheath * 100}%`
+                                if(this.health <= 25){
+                                        this.healthpan.classList.add('critical')
+                                        this.healthpan.classList.add('glitchy')
+                                        this.healthstat.innerText = 'STATUS: Critical Failure'
+                                }else if(this.health <= 50){
+                                        this.healthpan.classList.remove('critical')
+                                        this.healthpan.classList.add('glitchy')
+                                        this.healthstat.innerText = 'STATUS: Compromised'
+                                }else{
+                                        this.healthpan.classList.remove('critical')
+                                        this.healthpan.classList.remove('glitchy')
+                                        this.healthstat.innerText = 'STATUS: Normal'
+                                }
+                        }
+                        stamina(delta, sprint){
+                                if(sprint && this.stamina > 0){
+                                        this.stamina -= 30 * delta
+                                        this.staminastat.innerText = 'STATUS: Sprinting'
+                                        this.layer.style.filter = `blur(${Math.random() * 2}px)`
+
+                                }else{
+                                        if(this.stamina < this.maxstamia){
+                                                this.stamina += 15 * delta
+                                        }
+                                        this.staminastat.innerText = 'STATUS: Normal'
+                                        this.layer.style.filter = `blur(0px)`
+                                }
+                                this.stamina = Math.max(0, Math.min(this.maxstamia, this.stamina))
+                                this.staminabar.style.width = `${this.stamina / this.maxstamia * 100}%`
+                                if(this.stamina < 20){
+                                        this.staminabar.style.backgroundColor = '#ccaa00'
+
+                                }else {
+                                        this.staminabar.style.backgroundColor = ''
+                                }
+                        }
+                        floatphy(delta){
+                                this.time += delta
+                                const floatx = Math.sin(this.time * 0.5) * 15
+                                const floaty = Math.cos(this.time *0.7) *10
+                                const floatz = Math.sin(this.time * 0.3) * 20
+                                this.targrotx = (this.x * 15)
+                                this.targroty = -(this.y * 15)
+                                this.rotx += ((this.targrotx - this.rotx) * 0.1)
+                                this.roty += ((this.targroty - this.roty) * 0.1)
+                                this.layer.style.transform = `translate3d(${floatx}px, ${floaty}px, ${floatz}px) rotateX(${this.rotx}deg) rotateY(${this.roty}deg)`;
+          }
+
+                        
+                        anim(lastimothy = performance.now()){
+                                requestAnimationFrame((time) => {
+                                        const delta = (time - lastimothy) / 1000
+                                        this.floatphy(delta)
+                                        this.stamina(delta, window.sprinting)
+                                        this.anim(time)
+                                })
+                        }
+                }
+                const hud = new floatingshit();
+window.sprinting = false;
+
+document.getElementById('btndam').addEventListener('click', () => hud.healthup(-25));
+document.getElementById('btnheal').addEventListener('click', () => hud.healthup(25));
+                
+        </script>
+</body>
+</html>
