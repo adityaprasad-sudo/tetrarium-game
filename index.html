@@ -40,8 +40,9 @@
             width: 100vw;
             height: 100vh;
             pointer-events: none;
-            background: radial-gradient(circle, rgba(0,0,0,0) 50%,rgba(0,0,0,0.9) 100%);
             z-index: 50;
+            background: radial-gradient(circle, transparent 65%, rgba(0,0,0,0.8) 80%, #000 95%);
+            box-shadow: inset 0 0 10px rgba(0,0,0,1);
         }
         #loadingbar{
             width: 0%;
@@ -49,8 +50,14 @@
             background-color: #8b0000;
             transition: width 0.3s;
         }
-        .settingmenu{
-            background-color:rgba(5,5,5,0.95)
+        #settingmenu{
+            background-color:rgba(5,5,5,0.95);
+            z-index: 200;
+            overflow-y:auto;
+            justify-content: flex-start;
+            padding-top:50px;
+            padding-bottom: 80px;
+            box-sizing:border-box;
         }
         .settinggrp{
             display: flex;
@@ -117,11 +124,7 @@
             50%{opacity: 1}
             100%{opacity: 0.3}
         }
-        #hud{
-            pointer-events: none;
-            justify-content: flex-start;
-            padding-top: 20px;
-        }
+        
         body {
                         margin: 0;
                         overflow: hidden;
@@ -233,6 +236,57 @@
                         animation: criticalPulse 1s infinite; color: #ff3333; text-shadow: 0 0 8px #ff0000;
                 }
                 .critical .barfill { background: #ff0000; box-shadow: 0 0 10px #ff0000; }
+                #scnlines{
+                        position: absolute;
+                        opacity:40%;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        z-index: 10;
+                        pointer-events: none;
+                        background:repeating-linear-gradient( 0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px );
+                }
+                #track{
+                        position: absolute;
+                        left: 0;
+                        background: rgba(255, 255, 255, 0.03);
+                        width: 100vw;
+                        height: 10vh;
+                        z-index: 11;
+                        pointer-events: none;
+                        animation: tracking 6s infinite linear;
+                }
+                @keyframes tracking { 0% { top: -20%; } 100% { top: 120%; } }
+                .camtext{
+                    position:absolute;
+                    color: #fff;
+                    font-size: 1.8rem;
+                    font-weight: bold;
+                    text-shadow:2px 0px 0px rgba(255,0,0,0.7), -2px 0px 0px rgba(0,0,255,0.7);
+                    z-index: 20;
+                }
+                #redindi{
+                    top: 40px;
+                    left: 50px;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                #timedis{
+                    position:absolute;
+                    top: 40px; right: 50px; text-align: right; line-height: 1.2;
+                }
+                .reddot{
+                    left: 40px;
+                    width: 20px; height: 20px;
+                    align-items: center;
+            background-color: #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff0000;
+            animation: recBlink 1s infinite;
+                }
+                @keyframes recBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
     </style>
 </head>
@@ -251,6 +305,15 @@
         <div class="loadingbarcunt">
             <div id = "loadingbar"></div>
         </div>
+    </div>
+    <div id="storyscr" class="uilay" style="display: none; background-color: #000; z-index: 150;">
+        <div style="max-width: 800px; text-align: center; font-size: 1.5rem; line-height: 1.8; color: #ddd; text-shadow: 2px 2px 0px #000; margin-bottom: 50px;">
+            <p style="color: #8b0000; font-weight: bold; font-size: 2rem;">JANUARY 1st, 2027.</p>
+            <p>You are chosen to be a part of the Terrarium project.</p>
+            <p>The Facility has or had 15 terariums around the facility out of which 5 tetrariums have been mutated and thier whereabouts are  unknown.</p>
+            <p style="color: #20C20E; margin-top: 40px;">Your objective is to find the 10 tetrariums and be carefull as we dont know what happened to the other five tetrariums.</p>
+        </div>
+        <div class="loadtxt" style="font-size: 1.2rem; color: #667;">Press any key to start...</div>
     </div>
     <div id="settingmenu" class = "uilay" style="display:none">
         <h1 class="title" style="font-size:3rem">SETTINGS</h1>
@@ -271,17 +334,39 @@
             <input type="range" id="renderdistancerange" min="40" max="100" value="100">
         </div>
         <div class="settinggrp">
+            <label>Anti-Aliasing: <span id="aaval">4x</span></label>
+            <input type="range" id="aarange" min="0" max="4" value="2">
+        </div>
+        <div class="settinggrp">
             <label>Bloom Intensity: <span id="bloomval">0</span>%</label>
             <input type="range" id="bloomrange" min="0" max="2" step="0.1" value="0">
         </div>
+        <div class = "settinggrp" style="flex-direction: row; justify-content: space-between; align-items: center;">
+            <label style="margin: 0;">Enable Bloom:</label>
+            <input type="checkbox" id="bloomcheck" checked>
+        </div>
+        
         <button id = "backbtn" style="margin-top: 40px">BACK</button>
 
     </div>
     
-    <div id="hud" class="uilay" style="display:none">
+    
+    <div id="hud" style="display:none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50;">
         <div id = "bodycam"></div>
         <h1 id = "timothy" style="position: absolute; top: 20px; display:none; color: red;">GOD MODE: </h1>
+            
+            <div id = "redindi" class="camtext">
+                <div class="reddot"></div>REC
+            </div>
+            <div id = "timedis" class="camtext">
+                <span id="date">JAN. O1 2027</span><br>
+                <span id="time">12:00:00 AM</span>
+            </div>
+            <div id = "scnlines"></div>
+            <div id="tracking"></div>
         <div id = "hudlay">
+            
+            
             <div id = "healthpan" class="hudpan">
                 <h2>SYS_HEALTH</h2>
                 <div class="stattxt" id="healthstat">STATUS: Normal</div>
@@ -298,6 +383,13 @@
             </div>
         </div>
     </div>
+    <div id = "pausemenu" class="uilay" style="display:none">
+        <h1 class="title">PAUSED</h1>
+        <div class="menubtn">
+            <button id = "btnresume">RESUME</button>
+            <button id = "btnquit">QUIT</button>
+        </div>
+    </div>
 
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -311,6 +403,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
     <script  src="js/mechanism.js"></script>
     <script  src="js/menu.js"></script>
 </body>
