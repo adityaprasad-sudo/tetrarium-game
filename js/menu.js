@@ -5,27 +5,72 @@ const loaidngcr = document.getElementById('loadingscr')
 const hud1 = document.getElementById('hud')
 const aarange = document.getElementById('aarange')
 const aaval = document.getElementById('aaval')
-
+const paumenu = document.getElementById('pausemenu')
+const btnresume = document.getElementById('btnresume')
+const btnquit = document.getElementById('btnquit')
 const btnplay = document.getElementById('btnplay')
 const btnsettings = document.getElementById('settings')
 const backbtnsett = document.getElementById('backbtn')
 btnplay.addEventListener('click', () =>{
+    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    if(mobile && document.documentElement.requestFullscreen){
+        document.documentElement.requestFullscreen().catch(err => console.log(err))
+    }
     mainmenu.style.display = 'none'
     loaidngcr.style.display = 'flex'
     setTimeout(() => {
         loaidngcr.style.display = 'none'
         storyscr.style.display = 'flex'
         const startgm = (e) =>{
-            e.preventDefault()
+            if(e.type === 'touchstart')e.preventDefault()
             window.removeEventListener('keydown', startgm)
+        window.removeEventListener('touchstart', startgm)
+        window.removeEventListener('touchmove', startgm)
             storyscr.style.display = 'none'
             hud1.style.display = 'block'
-            document.body.requestPointerLock()
+            const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            if(mobile){
+                document.getElementById('mobile').style.display = 'block'
+                
+            }else{
+                document.body.requestPointerLock()
+            }
             if(typeof window.startgame === 'function') window.startgame()
         }
-        window.addEventListener('keydown', startgm)
-    }, 5000)
+    window.addEventListener('keydown', startgm)
+    window.addEventListener('touchstart', startgm)
+    window.addEventListener('touchmove', startgm)
+        }, 5000)
 })
+    const pausem = document.getElementById('pause')
+    if(pausem){
+        pausem.addEventListener('click', () => {
+            document.getElementById('pausemenu').style.display = 'flex'
+            window.pause =true
+        })
+    }
+    const btnfs = document.getElementById('btnfs')
+    if(btnfs){
+        btnfs.addEventListener('click', () => {
+            if(!document.fullscreenElement){
+                if(document.documentElement.requestFullscreen){
+                    document.documentElement.requestFullscreen().catch(err => console.log(err))
+                }
+            }else {
+                if(document.exitFullscreen){
+                    document.exitFullscreen()
+                }
+            }
+        })  
+    }
+    btnresume.addEventListener('click', () => {
+        document.getElementById('pausemenu').style.display = 'none'
+        const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+        window.pause = false
+        if(!mobile){
+            document.body.requestPointerLock()
+        }
+    })
 btnsettings.addEventListener('click', () => {
     mainmenu.style.display = 'none'
     settingsmenu.style.display = 'flex'
@@ -69,9 +114,7 @@ document.getElementById('bloomrange').addEventListener('input', (e) => {
     window.gamesettings.bloomintensity = parseFloat(e.target.value)
     if(typeof window.updategraph === 'function') window.updategraph(window.gamesettings)
 })
-const paumenu = document.getElementById('pausemenu')
-const btnresume = document.getElementById('btnresume')
-const btnquit = document.getElementById('btnquit')
+
 document.addEventListener('pointerlockchange', () => {
     if(typeof gamestart !== 'undefined' &&  gamestart === true){
         if(document.pointerLockElement === document.body){
@@ -98,4 +141,22 @@ const bloomchk = document.getElementById('bloomcheck')
 bloomchk.addEventListener('change', (e) => {
     window.gamesettings.bloom = e.target.checked
     if(typeof window.updategraph === 'function'){ window.updategraph(window.gamesettings)}
+})
+const diescr = document.getElementById('diescr')
+const respawnbtn = document.getElementById('btnres')
+const btnqit = document.getElementById('btndiequit')
+const reboovid = document.getElementById('reboovid')
+
+btnqit.addEventListener('click', () => {
+    window.location.reload()
+})
+respawnbtn.addEventListener('click', () => {
+    diescr.style.display = 'none'
+    reboovid.style.display = 'block'
+    reboovid.currentTime = 0
+    reboovid.play()
+})
+reboovid.addEventListener('ended', () => {
+    reboovid.style.display = 'none'
+    if(typeof window.respawn === 'function') {window.respawn()}
 })

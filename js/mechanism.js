@@ -1,5 +1,7 @@
 
 let gamestart = false
+window.isdead = false
+window.pause = false
 const scene = new THREE.Scene()
 class floatingshit{
                         constructor(){
@@ -25,14 +27,12 @@ class floatingshit{
                                 this.init()
                         }
                         init(){
-                                
-                                this.anim()
                         }
                         healthup(amount){
                                 this.health = Math.max(0, Math.min(this.maxheath, this.health + amount))
                                 this.healthbar.style.width = `${this.health / this.maxheath * 100}%`
-                                if(this.health <= 0){
-                                    window.location.reload()
+                                if(this.health <=0){
+                                    if(typeof window.death === 'function' && !window.isdead) {window.death()}
                                 }
                                 if(this.health <= 25){
                                         this.healthpan.classList.add('critical')
@@ -619,7 +619,70 @@ const movy = Math.max(-maxdelta, Math.min(maxdelta, e.movementY))
             if (e.key === 'Shift') this.key.shift = false;
             if (e.key === ' ') this.key.space = false
         });
-    },
+        const moveit = document.getElementById('moveit')
+        const lookit = document.getElementById('lookit')
+        const sprint = document.getElementById('sprint')
+        const interact = document.getElementById('interact')
+        if(moveit && lookit){
+            let touchx, touchy 
+            lookit.addEventListener('touchstart', (e) => {
+                touchx = e.targetTouches[0].clientX
+                touchy = e.targetTouches[0].clientY
+            }, {passive: false})
+            lookit.addEventListener('touchmove', (e) => {
+                    e.preventDefault()
+                    if(!e.targetTouches.length) return;
+                    const movx = e.targetTouches[0].clientX
+                    const movy = e.targetTouches[0].clientY
+                    const sens = window.gamesettings.sensitivity * 2.5
+                    this.yaw -= (movx - touchx) * sens
+                    this.pitch -= (movy - touchy) * sens
+                    this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch))
+                    touchx = movx
+                    touchy = movy
+            }, {passive: false})
+            let strmx ,strmy
+            moveit.addEventListener('touchstart', (e) => {
+                strmx = e.targetTouches[0].clientX
+                strmy = e.targetTouches[0].clientY
+            }, {passive: false})
+            moveit.addEventListener('touchmove', (e) => {
+                    e.preventDefault()
+                    const dx = e.targetTouches[0].clientX - strmx
+                    const dy = e.targetTouches[0].clientY - strmy
+                    this.key.w = this.key.s = this.key.a = this.key.d = false
+                    if(dy < -25) this.key.w = true
+                    else if(dy > 25) this.key.s = true
+                    if(dx < -25) this.key.a = true
+                    else if(dx > 25) this.key.d = true
+            }, {passive: false})
+            moveit.addEventListener('touchend', (e) => {
+                this.key.w = this.key.s = this.key.a = this.key.d = false
+            })
+            sprint.addEventListener('touchstart', (e) => {
+                e.preventDefault()
+                this.key.shift = true
+            })
+            sprint.addEventListener('touchend', (e) => {
+                e.preventDefault()
+                this.key.shift = false
+            })
+            interact.addEventListener('touchstart', (e) => {
+                e.preventDefault()
+                if(this.ishide){
+                    this.ishide = false
+                    const forw = new THREE.Vector3(0,0,-2).applyAxisAngle(new THREE.Vector3(0,1,0), this.yaw)
+                    this.position.add(forw)
+                }else if (this.actloc){
+                    this.ishide = true
+                    staker.length = 0
+                    const truepos = new THREE.Vector3()
+                    this.actloc.getWorldPosition(truepos)
+                    this.position.set(truepos.x, this.position.y, truepos.z)
+                }
+            })
+        }
+    },    
     
     update: function(delta) {
         this.actloc = null
@@ -892,9 +955,14 @@ const ui = document.getElementById('timothy')
 
 function anim() {
     requestAnimationFrame(anim);
-    if(!gamestart) return;
+    if(!gamestart || window.isdead || window.pause) {
+        if (gamestart) time.getDelta();
+        comp.render()
+        return};
+        const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
     const delta = time.getDelta();
-    if(document.pointerLockElement){
+    if(document.pointerLockElement || mobile){
         const ismove = (player.key.w || player.key.a || player.key.s || player.key.d);
     
     playerhud.x *= 0.9
@@ -961,14 +1029,36 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
         }
     }
     
-    player.update(delta)}
+    player.update(delta)
+}
     comp.render()
-    
-    
 }
 window.startgame = function(){
     gamestart = true
     time.start()
     
+}
+window.death = function(){
+    window.isdead = true
+    document.exitPointerLock()
+    document.getElementById('hud').style.display = 'none'
+    document.getElementById('diescr').style.display = 'flex'
+}
+window.respawn = function(){
+    window.isdead = false
+    playerhud.health = 100
+    playerhud.healthup(0)
+    playerhud.staminalevel = 100
+    player.stamina = 100
+    player.cooldown = 0
+    player.position.set(0,1.6,0)
+    player.velocity.set(0,0,0)
+    if(crocnpc){
+        crocnpc.mesh.position.set(50,5,50)
+        crocnpc.changestate('idle', 'idle')
+    }
+    document.getElementById('hud').style.display = 'block'
+    const mobiel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if(!mobiel){document.body.requestPointerLock()}
 }
 anim()

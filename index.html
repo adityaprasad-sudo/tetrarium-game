@@ -301,8 +301,97 @@
                     background-position: center;
 
                 }
+                .die{
+                    display: none;
+                    background-color: rgba(10, 0, 0, 0.95); 
+                    z-index: 300;
+                }
+                .vid{
+                    display: none; 
+                    position: absolute; 
+                    top: 0; left: 0; 
+                    width: 100vw; 
+                    height: 100vh; 
+                    object-fit: cover; 
+                    z-index: 350; 
+                    pointer-events: none;
+                }
+                .smallscr{
+                    display: none; 
+                    position: absolute; 
+                    top: 0; 
+                    left: 0; 
+                    width: 100vw; 
+                    height: 100vh; 
+                    pointer-events: none; 
+                    z-index: 150;
+                }
+                .pausebtn{
+                    position: absolute; 
+                    top: 20px;
+                    bottom: 40px; 
+                    left: 20px; 
+                    width: 50px; 
+                    height: 50px; 
+                    border: 2px solid rgba(255,255,255,0.1); 
+                    border-radius: 10px; display: flex;
+                    color: white;
+                    align-items: center;
+                    justify-content: center; 
+                    background-color: rgba(50,50,50,0.8);
+                    z-index: 1000;
+                    pointer-events: auto;
+                }
+                .move{
+                    position: absolute; 
+                    top: 0; 
+                    left: 0; 
+                    width: 50vw; 
+                    height: 100vh;
+                    z-index: 5;
+                    pointer-events: auto;
+                    background-color: rgba(0,0,0,0.01);
+                }
+                .look{
+                    position: absolute; 
+                    top: 0; 
+                    right: 0; 
+                    width: 100vw; 
+                    height: 100vh; 
+                    pointer-events: auto;
+                    z-index: 1;
+                    background-color: rgba(0,0,0,0.01);
+                }
+                .sprintm{
+                    
+ 
+    position: absolute;
+    background: none;
+    border: 2px solid #333;
+    color: #888;
+    bottom: 150px;
+    right: 30px;
+    padding: 15px 40px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: 0.3s;
 
-    </style>
+                }
+                .interact{
+                   
+    position: absolute;
+    background: none;
+    border: 2px solid #333;
+    color: #888;
+    bottom: 150px;
+    right: 150px;
+    padding: 15px 40px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: 0.3s;
+
+                }
+</style>
 </head>
 <body>
     
@@ -364,8 +453,30 @@
 
     </div>
     
-    
+    <div id = "diescr" class="uilay" style="display: none;
+                    background-color: rgba(10, 0, 0, 0.95); 
+                    z-index: 300;">
+        <h1 class="title" style="color: #ff0000; text-shadow: 2px 2px 0px #550000;">SYS_FAILURE</h1>
+        <div class="menubtn">
+          <button id="btnres">SYS_REBOOT</button>
+          <button id="btndiequit">QUIT</button>
+        </div>
+    </div>
+    <video id="reboovid" class="vid" src="video/reboot.mp4" playsinline></video>
     <div id="hud" style="display:none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50;">
+        <div id= "mobile" class="smallscr">
+            <button id="pause" class="pausebtn">||</button>
+            <button id="btnfs" class="pausebtn" style="top: 80px; pointer-events: auto;">[ ]</button>
+            <div id="moveit" class="move">
+                <div class="idk">Move</div>
+            </div>
+            <div id="lookit" class="look">
+            </div>
+            <div style="position: absolute; bottom: 30px; right: 30px; display: flex; gap: 15px; pointer-events: auto; z-index: 1000;">
+                <button id="sprint" class="sprintm">Run</button>
+                <button id="interact" class="interact">Hide</button>
+            </div>
+        </div>
         <div id = "bodycam"></div>
         <div id = "glass" class="galssover"></div>
         <h1 id = "timothy" style="position: absolute; top: 20px; display:none; color: red;">GOD MODE: </h1>
