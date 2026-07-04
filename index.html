@@ -287,6 +287,20 @@
             animation: recBlink 1s infinite;
                 }
                 @keyframes recBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+                .galssover{
+                    display:none;
+                    position:absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    pointer-events: none;
+                    z-index:25;
+                    background-image: url('./images/glass.png');
+                    background-size: cover;
+                    background-position: center;
+
+                }
 
     </style>
 </head>
@@ -353,6 +367,7 @@
     
     <div id="hud" style="display:none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50;">
         <div id = "bodycam"></div>
+        <div id = "glass" class="galssover"></div>
         <h1 id = "timothy" style="position: absolute; top: 20px; display:none; color: red;">GOD MODE: </h1>
             
             <div id = "redindi" class="camtext">

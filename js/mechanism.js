@@ -10,6 +10,7 @@ class floatingshit{
                                 this.healthstat = document.getElementById('healthstat')
                                 this.staminapan = document.getElementById('staminapan')
                                 this.staminastat = document.getElementById('staminastat')
+                                this.glass = document.getElementById('glass')
                                 this.time = 0 
                                 this.x = 0
                                 this.y = 0
@@ -24,27 +25,38 @@ class floatingshit{
                                 this.init()
                         }
                         init(){
-                                document.addEventListener('mousemove', (e) => {
-                                        this.x = (e.clientX / window.innerWidth) * 2 - 1
-                                        this.y = (e.clientY / window.innerHeight) * 2 - 1
-                                })
+                                
                                 this.anim()
                         }
                         healthup(amount){
                                 this.health = Math.max(0, Math.min(this.maxheath, this.health + amount))
                                 this.healthbar.style.width = `${this.health / this.maxheath * 100}%`
+                                if(this.health <= 0){
+                                    window.location.reload()
+                                }
                                 if(this.health <= 25){
                                         this.healthpan.classList.add('critical')
                                         this.healthpan.classList.add('glitchy')
                                         this.healthstat.innerText = 'STATUS: Critical Failure'
+                                        if(this.glass){
+                                            this.glass.style.display = 'block'
+                                            this.glass.style.opacity = '1'
+                                        }
                                 }else if(this.health <= 50){
                                         this.healthpan.classList.remove('critical')
                                         this.healthpan.classList.add('glitchy')
                                         this.healthstat.innerText = 'STATUS: Compromised'
+                                        if(this.glass){
+                                            this.glass.style.display = 'block'
+                                            this.glass.style.opacity = '0.2'
+                                        }
                                 }else{
                                         this.healthpan.classList.remove('critical')
                                         this.healthpan.classList.remove('glitchy')
                                         this.healthstat.innerText = 'STATUS: Normal'
+                                        if(this.glass){
+                                            this.glass.style.display = 'none'
+                                        }
                                 }
                         }
                         stamina(delta, sprint, ismove){
@@ -97,8 +109,8 @@ class floatingshit{
                         }
                         floatphy(delta){
                                 this.time += delta
-                                this.targrotx = (this.x * 70)
-                                this.targroty = -(this.y * 70)
+                                this.targrotx = (this.x * 25)
+                                this.targroty = -(this.y * 25)
                                 this.rotx += ((this.targrotx - this.rotx) * 0.1)
                                 this.roty += ((this.targroty - this.roty) * 0.1)
                                 this.layer.style.transform = `translate3d(0px,0px, 0px) rotateX(${this.rotx}deg) rotateY(${this.roty}deg)`;
@@ -427,6 +439,7 @@ this.currentstatee = newstate
                 break;
             case 'attack':
                 this.mesh.lookAt(pos.x, this.mesh.position.y, pos.z);
+                playerhud.healthup(-30 * chatime)
                 if (distpl > this.attradi) {
                     this.changestate('chase', 'run');
                 }    
@@ -550,14 +563,27 @@ const player = {
         renderer.domElement.addEventListener('click', () => {
             document.body.requestPointerLock();
         });
+        let skip = false
+        document.addEventListener('pointerlockchange', () => {
+            if(document.pointerLockElement){
+                skip = true
+            }
+        })
         document.addEventListener('mousemove', (e) => {
     if(document.pointerLockElement){
+        if(skip){
+            skip = false
+            return
+        }
+        const maxdelta = 100
+const movx = Math.max(-maxdelta, Math.min(maxdelta, e.movementX))
+const movy = Math.max(-maxdelta, Math.min(maxdelta, e.movementY))
         const sens = window.gamesettings.sensitivity
-        this.yaw -= e.movementX * sens
-        this.pitch -= e.movementY * sens
+        this.yaw -= movx * sens
+        this.pitch -= movy * sens
         this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch))
-        playerhud.x -= e.movementX * 0.015
-        playerhud.y -= e.movementY * 0.015
+        playerhud.x -= movx * 0.015
+        playerhud.y -= movy * 0.015
         playerhud.x = Math.max(-1, Math.min(1, playerhud.x))
         playerhud.y = Math.max(-1, Math.min(1, playerhud.y))
     }
