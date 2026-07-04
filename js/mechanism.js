@@ -838,8 +838,21 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
 
     scene.add(mpmodel)
 })
+const bottles = []
+loader.load('./models/bottle/bottle.glb', (gltf) => {
+    const sapwn = [
+        { x: 6, z: -6},
+    ]
+    sapwn.forEach((pos) => {
+        const item = gltf.scene.clone()
+        item.scale.set(10, 10, 10)
+        item.position.set(pos.x,0, pos.z)
+        scene.add(item)
+        bottles.push(item)
+    })
+})
 
-loader.load('./models/crocodile.glb', (gltf) => {
+loader.load('./models/crocodile1.glb', (gltf) => {
     gltf.scene.add(crocgrowl)
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
@@ -912,9 +925,6 @@ window.addEventListener('resize', () => {
 loader.load('./models/terrarium.glb', (gltf) => {
     const spawn =[
         { x: -89.72, z: -150.74 },
-        { x: 6, z: -6 },
-        { x: -6, z: 6 },
-        { x: -6, z: -6 }
     ]
     spawn.forEach((pos) => {
         const item = gltf.scene.clone()
@@ -937,9 +947,6 @@ let kama = 0
 loader.load('./models/powerball.glb', (gltf) => {
     const spawn =[
         { x: -89.72, z: -150.74 },
-        { x: 6, z: -6 },
-        { x: -6, z: 6 },
-        { x: -6, z: -6 }
     ]
     spawn.forEach((pos) => {
         const item = gltf.scene.clone()
@@ -996,6 +1003,18 @@ function anim() {
             scene.remove(item)
            musicdayum.currentTime = 0;
            musicdayum.play()
+        }
+    }
+    for(let i = bottles.length -1; i >= 0; i--){
+        let item = bottles[i]
+        const dx = player.position.x - item.position.x
+        const dz = player.position.z - item.position.z
+        const horidis = Math.sqrt(dx * dx + dz * dz)
+        
+        if(horidis < 2.5){
+            bottles.splice(i, 1)
+            scene.remove(item)
+            playerhud.healthup(25)
         }
     }
     if(dayum){
