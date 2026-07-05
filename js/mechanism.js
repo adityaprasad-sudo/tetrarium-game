@@ -21,9 +21,9 @@ class floatingshit{
                                 this.targrotx = 0
                                 this.targroty = 0
                                 this.health = 100
-                                this.maxstamia =100
+                                this.maxstamia =200
                                 this.maxheath = 100
-                                this.staminalevel = 100
+                                this.staminalevel = 200
                                 this.init()
                         }
                         init(){
@@ -38,6 +38,8 @@ class floatingshit{
                                         this.healthpan.classList.add('critical')
                                         this.healthpan.classList.add('glitchy')
                                         this.healthstat.innerText = 'STATUS: Critical Failure'
+                                        healwarn2.play()
+                                        healwarn.play()
                                         if(this.glass){
                                             this.glass.style.display = 'block'
                                             this.glass.style.opacity = '1'
@@ -46,6 +48,8 @@ class floatingshit{
                                         this.healthpan.classList.remove('critical')
                                         this.healthpan.classList.add('glitchy')
                                         this.healthstat.innerText = 'STATUS: Compromised'
+                                        healwarn2.pause()
+                                        healwarn.pause()
                                         if(this.glass){
                                             this.glass.style.display = 'block'
                                             this.glass.style.opacity = '0.2'
@@ -54,6 +58,8 @@ class floatingshit{
                                         this.healthpan.classList.remove('critical')
                                         this.healthpan.classList.remove('glitchy')
                                         this.healthstat.innerText = 'STATUS: Normal'
+                                        healwarn2.pause()
+                                        healwarn.pause()
                                         if(this.glass){
                                             this.glass.style.display = 'none'
                                         }
@@ -66,14 +72,14 @@ class floatingshit{
     stawarn.pause()
 }
                             
-                                if(sprint && ismove  && this.staminalevel > 0){
+                                if(sprint && ismove  && this.staminalevel > 0  ){
                                         this.staminalevel -= 25 * delta
                                         this.cooldown = 5
                                         this.staminastat.innerText = 'STATUS: Sprinting'
                                         this.staminastat.style.color = ''
                                         this.layer.style.filter = `blur(${Math.random() * 2}px)`
                                         if(this.staminalevel <= 0 && this.cooldown <= 0 ){
-                                this.cooldown = 5
+                                        this.cooldown = 5
                             }
 
                                 }else{
@@ -83,7 +89,7 @@ class floatingshit{
                                            
                                         this.staminastat.innerText = 'STATUS: Battery overload'
                                         this.staminastat.style.color = '#ff0000'}
-                                        else{
+                                        else if (this.staminalevel >0 && this.staminalevel < 50){
                                             
                                         this.staminastat.innerText = 'STATUS: Recharging'
                                         this.staminastat.style.color = '#ccaa00'
@@ -94,6 +100,10 @@ class floatingshit{
                                                 this.staminalevel += 15 * delta
                                                 this.staminastat.innerText = 'STATUS: Normal'
                                                 this.staminastat.style.color = '#00ff00'
+                                        this.layer.style.filter = `blur(0px)`
+                                        }else {
+                                            this.staminastat.innerText = 'STATUS: Normal'
+                                        this.staminastat.style.color = '#00ff00'
                                         this.layer.style.filter = `blur(0px)`
                                         }
                                         
@@ -307,8 +317,8 @@ class cronpc {
         this.currentaction = this.actions.idle
         if (this.currentaction) this.currentaction.play()
         
-        this.walkspeed = 0.07
-        this.run = 0.15
+        this.walkspeed = 0.05
+        this.run = 0.14
         this.radius = 15
         this.attradi = 5
         this.gravity = -0.05
@@ -537,11 +547,11 @@ const player = {
     yaw: 0,
     pitch: 0,
     speed: 0.15,
-    walkspeed: 0.15,
-    sprintspeed: 0.22,
+    walkspeed: 0.1,
+    sprintspeed: 0.17,
     cooldown: 0,
-    stamina: 100,
-    maxstamina: 100,
+    stamina: 200,
+    maxstamina: 200,
     bob: 0,
     gravity: -0.05,
     jumpforce: 0.6,
@@ -838,10 +848,32 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
 
     scene.add(mpmodel)
 })
+
 const bottles = []
 loader.load('./models/bottle/bottle.glb', (gltf) => {
+    
     const sapwn = [
-        { x: 6, z: -6},
+        { x: 8.34, z: -41.569},
+        { x: -1.01, z: -61.214},
+        { x: -33.56, z: 6.211},
+        { x: -61.17, z: -3.46},
+        { x: -92.28, z: -30.24},
+        { x: -110.8, z: -41.992},
+        { x: -90.920, z: -78.247},
+        { x: -56.011, z: -75.391},
+        { x: 26.94, z: -105.97},
+        { x: 56.94, z: -95.368},
+        { x: 125.25, z: -60.815},
+        { x: 149.3, z: -41.737},
+        { x: 179.56, z: -57.61},
+        { x: 156.26, z: -38.169},
+        { x: 137.68, z: -28.12},
+        { x: 105, z: 9.26},
+        { x: 45.34, z: 6.094},
+        { x: 31.4, z: 27.655},
+        { x: -44.6, z: 45.704},
+        { x: 13.48, z: 79.515},
+        { x: 50.468, z: 76.627},
     ]
     sapwn.forEach((pos) => {
         const item = gltf.scene.clone()
@@ -851,13 +883,24 @@ loader.load('./models/bottle/bottle.glb', (gltf) => {
         bottles.push(item)
     })
 })
-
-loader.load('./models/crocodile1.glb', (gltf) => {
+const choco = []
+loader.load('./models/chocolate/Untitled.glb', (gltf) => {
+    const toatal= 30
+    const mp = 200
+    for(let i = 0; i < toatal; i++){
+        const item = gltf.scene.clone()
+        item.scale.set(3, 3, 3)
+        item.position.set((Math.random() * mp) - mp/2,0, (Math.random() * mp) - mp/2)
+        scene.add(item)
+        choco.push(item)
+    } 
+})
+loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocgrowl)
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
     console.log(gltf.animations)
-    crocnpc = new cronpc(scene, gltf, 0, 0) 
+    crocnpc = new cronpc(scene, gltf, 50, 50) 
 }, undefined, (error) => console.error(error))
 const listen = new THREE.AudioListener()
 camera.add(listen)
@@ -909,6 +952,18 @@ loader2.load('./audio/stamina.mp3', (buffer) => {
     stawarn.setBuffer(buffer)
     stawarn.setLoop(true)
     stawarn.setVolume(2)
+})
+const healwarn2= new THREE.Audio(listen)
+loader2.load('./audio/warning/warning2.mp3', (buffer) => {
+    healwarn2.setBuffer(buffer)
+    healwarn2.setLoop(true)
+    healwarn2.setVolume(1)
+})
+const healwarn = new THREE.Audio(listen)
+loader2.load('./audio/warning/waring1.mp3', (buffer) => {
+    healwarn.setBuffer(buffer)
+    healwarn.setLoop(true)
+    healwarn.setVolume(1)
 })
 
 window.addEventListener('resize', () => {
@@ -962,16 +1017,15 @@ const ui = document.getElementById('timothy')
 
 function anim() {
     requestAnimationFrame(anim);
+
     if(!gamestart || window.isdead || window.pause) {
         if (gamestart) time.getDelta();
         comp.render()
         return};
         const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
     const delta = time.getDelta();
     if(document.pointerLockElement || mobile){
         const ismove = (player.key.w || player.key.a || player.key.s || player.key.d);
-    
     playerhud.x *= 0.9
     playerhud.y *= 0.9
     playerhud.floatphy(delta)
@@ -981,7 +1035,6 @@ function anim() {
         const dx = player.position.x - item.position.x
         const dz = player.position.z - item.position.z
         const horidis = Math.sqrt(dx * dx + dz * dz)
-        
         if(horidis < 2.5){
             terreriums.splice(i, 1)
             scene.remove(item)
@@ -1001,8 +1054,8 @@ function anim() {
             ui.style.display = 'block'
             power.splice(i, 1)
             scene.remove(item)
-           musicdayum.currentTime = 0;
-           musicdayum.play()
+            musicdayum.currentTime = 0;
+            musicdayum.play()
         }
     }
     for(let i = bottles.length -1; i >= 0; i--){
@@ -1015,6 +1068,19 @@ function anim() {
             bottles.splice(i, 1)
             scene.remove(item)
             playerhud.healthup(25)
+        }
+    }
+    for(let i = choco.length -1; i >= 0; i--){
+        let item = choco[i]
+        const dx = player.position.x - item.position.x
+        const dz = player.position.z - item.position.z
+        const horidis = Math.sqrt(dx * dx + dz * dz)
+        
+        if(horidis < 2.5){
+            choco.splice(i, 1)
+            scene.remove(item)
+            playerhud.staminalevel = 200
+            player.stamina = 200 
         }
     }
     if(dayum){
@@ -1062,6 +1128,9 @@ window.death = function(){
     document.exitPointerLock()
     document.getElementById('hud').style.display = 'none'
     document.getElementById('diescr').style.display = 'flex'
+    if(typeof listen !== 'undefined'){
+        listen.setMasterVolume(0)
+    }
 }
 window.respawn = function(){
     window.isdead = false
@@ -1077,6 +1146,9 @@ window.respawn = function(){
         crocnpc.changestate('idle', 'idle')
     }
     document.getElementById('hud').style.display = 'block'
+    if(typeof listen !== 'undefined'){
+        listen.setMasterVolume(window.gamesettings.mastervolume)
+    }
     const mobiel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if(!mobiel){document.body.requestPointerLock()}
 }
