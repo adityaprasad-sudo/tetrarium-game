@@ -886,12 +886,24 @@ loader.load('./models/chocolate/Untitled.glb', (gltf) => {
         choco.push(item)
     } 
 })
+let croc = false
+let groi = false
+
 loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocgrowl)
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
     console.log(gltf.animations)
     crocnpc = new cronpc(scene, gltf, 50, 50) 
+    croc = true
+}, undefined, (error) => console.error(error))
+loader.load('./models/gorilla/gorilla.glb', (gltf) => {
+    gltf.scene.add(crocgrowl)
+    gltf.scene.add(crocideal)
+    gltf.scene.add(crocrun)
+    console.log(gltf.animations)
+    crocnpc = new cronpc(scene, gltf, 10, 10) 
+    groi = true
 }, undefined, (error) => console.error(error))
 const listen = new THREE.AudioListener()
 camera.add(listen)
@@ -913,6 +925,25 @@ loader2.load('./audio/chase.mp3', (buffer) => {
     chasemu.setVolume(0.5)
 })
 const crocgrowl = new THREE.PositionalAudio(listen)
+if(croc){
+    loader2.load('./audio/scream.mp3', (buffer) => {
+    crocgrowl.setBuffer(buffer)
+    crocgrowl.setRefDistance(10)
+    crocgrowl.setMaxDistance(200)
+    crocgrowl.setDistanceModel('linear')
+    crocgrowl.setLoop(true)
+    crocgrowl.setVolume(2)
+})
+}else if (groi){
+    loader2.load('./gorilla/sound/gorillascream.mp3', (buffer) => {
+        crocgrowl.setBuffer(buffer)
+        crocgrowl.setRefDistance(10)
+        crocgrowl.setMaxDistance(200)
+        crocgrowl.setDistanceModel('linear')
+        crocgrowl.setLoop(true)
+        crocgrowl.setVolume(2)
+    })
+}
 loader2.load('./audio/scream.mp3', (buffer) => {
     crocgrowl.setBuffer(buffer)
     crocgrowl.setRefDistance(10)
@@ -1104,7 +1135,6 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
             }
         }
     }
-    
     player.update(delta)
 }
     comp.render()
@@ -1112,7 +1142,6 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
 window.startgame = function(){
     gamestart = true
     time.start()
-    
 }
 window.death = function(){
     window.isdead = true
