@@ -72,50 +72,41 @@ class floatingshit{
     stawarn.pause()
 }
                             
-                                if(sprint && ismove  && this.staminalevel > 0  ){
+                                if(sprint && ismove && this.staminalevel > 0 && !player.ishide ){
                                         this.staminalevel -= 25 * delta
-                                        this.cooldown = 5
+                                        this.cooldown = 2
                                         this.staminastat.innerText = 'STATUS: Sprinting'
                                         this.staminastat.style.color = ''
                                         this.layer.style.filter = `blur(${Math.random() * 2}px)`
-                                        if(this.staminalevel <= 0 && this.cooldown <= 0 ){
-                                        this.cooldown = 5
+                                        
                             }
 
-                                }else{
+                                else{
                                     if(this.cooldown > 0 ){
                                         this.cooldown -= delta
-                                        if(this.staminalevel <= 0){
-                                           
-                                        this.staminastat.innerText = 'STATUS: Battery overload'
-                                        this.staminastat.style.color = '#ff0000'}
-                                        else if (this.staminalevel >0 && this.staminalevel < 50){
-                                            
-                                        this.staminastat.innerText = 'STATUS: Recharging'
-                                        this.staminastat.style.color = '#ccaa00'
-                                    }
-                                    this.layer.style.filter = `blur(0px)`
-                                    }
-                                        else if(this.staminalevel < this.maxstamia){
-                                                this.staminalevel += 15 * delta
-                                                this.staminastat.innerText = 'STATUS: Normal'
-                                                this.staminastat.style.color = '#00ff00'
-                                        this.layer.style.filter = `blur(0px)`
-                                        }else {
-                                            this.staminastat.innerText = 'STATUS: Normal'
-                                        this.staminastat.style.color = '#00ff00'
-                                        this.layer.style.filter = `blur(0px)`
-                                        }
-                                        
+                                    
+                                    }else if (this.staminalevel < this.maxstamia) {
+                                    this.staminalevel += 15 * delta
+                                     }if (this.staminalevel <= 0) {
+                                    this.staminastat.innerText = 'STATUS: Battery overload'
+                                    this.staminastat.style.color = '#ff0000'
+                                } else if (this.staminalevel > 0 && this.staminalevel < 50) {
+                                    this.staminastat.innerText = 'STATUS: Recharging'
+                                    this.staminastat.style.color = '#ccaa00'
+                                } else {
+                                    this.staminastat.innerText = 'STATUS: Normal'
+                                    this.staminastat.style.color = '#00ff00'
                                 }
+                                this.layer.style.filter = `blur(0px)`
+                            }
                                 this.staminalevel = Math.max(0, Math.min(this.maxstamia, this.staminalevel))
-                                this.staminabar.style.width = `${this.staminalevel / this.maxstamia * 100}%`
-                                if(this.staminalevel < 40){
-                                        this.staminabar.style.backgroundColor = '#ccaa00'
-
-                                }else {
-                                        this.staminabar.style.backgroundColor = '#00ff00'
-                                }
+                            this.staminabar.style.width = `${this.staminalevel / this.maxstamia * 100}%`
+                            
+                            if (this.staminalevel < 40) {
+                                this.staminabar.style.backgroundColor = '#ccaa00'
+                            } else {
+                                this.staminabar.style.backgroundColor = '#00ff00'
+                            }
                         }
                         floatphy(delta){
                                 this.time += delta
