@@ -324,18 +324,18 @@ class cronpc {
         if (this.currentstatee === newstate || !this.actions[actionName]) return
         if(newstate === 'chase' && this.currentstatee !== 'chase'){
             fade(chasemu, 0.6, 0.5, false);
-            if(!crocgrowl.isPlaying) crocgrowl.play();
+            if(this.growl && !this.growl.isPlaying) this.growl.play();
         }
         if(newstate === 'patrol' && this.currentstatee === 'chase'){
             fade(chasemu, 0, 2.5, false);
-            safety(crocgrowl)
-            if(!crocideal.isPlaying) crocideal.play();
+            if(this.growl) safety(this.growl)
+            if(this.ideal && !this.ideal.isPlaying) this.ideal.play();
         }
         if(newstate === 'flee' && this.currentstatee !== 'flee'){
             fade(chasemu, 0, 2.5, true);
-            safety(crocideal)
-            safety(crocgrowl)
-            if(!crocrun.isPlaying) crocrun.play();
+            if(this.growl)safety(this.growl)
+            if(this.ideal)safety(this.ideal)
+            if(this.runaud && !this.runaud.isPlaying) this.runaud.play();
         }
         if (this.currentstatee === 'chase' && newstate !== 'chase') {
             fade(chasemu, 0, 2.5, false);
@@ -415,7 +415,7 @@ this.currentstatee = newstate
             return "alive"
         }
         if (!dayum && this.currentstatee === 'flee') {
-        safety(crocrun)
+        if(this.runaud) safety(this.runaud)
         this.changestate('idle', 'idle')
          }
         switch (this.currentstatee) {
@@ -427,7 +427,7 @@ this.currentstatee = newstate
                 this.dumb(this.walkspeed);
                 if (Math.random() < 0.005) this.changestate('idle', 'idle')  
                 if (distpl < this.radius) this.changestate('chase', 'run')
-                    if(Math.random() < 0.5 && !crocideal.isPlaying) crocideal.play();
+                    if(Math.random() < 0.5 && this.ideal && !this.ideal.isPlaying) this.ideal.play();
                 break
             case 'chase':
                   
@@ -888,22 +888,37 @@ loader.load('./models/chocolate/Untitled.glb', (gltf) => {
 })
 let croc = false
 let groi = false
-
+let gorilla = null
+let clark = null
 loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocgrowl)
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
     console.log(gltf.animations)
-    crocnpc = new cronpc(scene, gltf, 50, 50) 
-    croc = true
+    crocnpc = new cronpc(scene, gltf, -20, -50) 
+    crocnpc.growl = crocgrowl
+    crocnpc.runaud = crocrun
+    crocnpc.ideal = crocideal
 }, undefined, (error) => console.error(error))
 loader.load('./models/gorilla/gorilla.glb', (gltf) => {
-    gltf.scene.add(crocgrowl)
-    gltf.scene.add(crocideal)
-    gltf.scene.add(crocrun)
+    gltf.scene.add(gorillagrowl)
+    gltf.scene.add(gorillaideal)
     console.log(gltf.animations)
-    crocnpc = new cronpc(scene, gltf, 10, 10) 
-    groi = true
+    gorilla = new cronpc(scene, gltf, 20, 20) 
+    gorilla.growl= gorillagrowl
+    gorilla.ideal = gorillaideal
+    gorilla.runaud = gorillarun
+}, undefined, (error) => console.error(error))
+loader.load('./models/clark/clark.glb', (gltf) => {
+    
+    gltf.scene.add(clarkgrowl)
+    gltf.scene.add(clarkidle)
+    gltf.scene.add(clarkrun)
+    console.log(gltf.animations)
+    clark = new cronpc(scene, gltf, 10, 20)
+    clark.growl= clarkgrowl
+    clark.ideal = clarkidle
+    clark.runaud = clarkrun
 }, undefined, (error) => console.error(error))
 const listen = new THREE.AudioListener()
 camera.add(listen)
@@ -925,7 +940,12 @@ loader2.load('./audio/chase.mp3', (buffer) => {
     chasemu.setVolume(0.5)
 })
 const crocgrowl = new THREE.PositionalAudio(listen)
-if(croc){
+const gorillagrowl = new THREE.PositionalAudio(listen)
+const gorillaideal = new THREE.PositionalAudio(listen)
+const gorillarun = new THREE.PositionalAudio(listen)
+const clarkrun = new THREE.PositionalAudio(listen)
+const clarkidle = new THREE.PositionalAudio(listen)
+const clarkgrowl = new THREE.PositionalAudio(listen)
     loader2.load('./audio/scream.mp3', (buffer) => {
     crocgrowl.setBuffer(buffer)
     crocgrowl.setRefDistance(10)
@@ -934,16 +954,56 @@ if(croc){
     crocgrowl.setLoop(true)
     crocgrowl.setVolume(2)
 })
-}else if (groi){
-    loader2.load('./gorilla/sound/gorillascream.mp3', (buffer) => {
-        crocgrowl.setBuffer(buffer)
-        crocgrowl.setRefDistance(10)
-        crocgrowl.setMaxDistance(200)
-        crocgrowl.setDistanceModel('linear')
-        crocgrowl.setLoop(true)
-        crocgrowl.setVolume(2)
+
+    loader2.load('./models/gorilla/sound/gorillascream.mp3', (buffer) => {
+        gorillagrowl.setBuffer(buffer)
+        gorillagrowl.setRefDistance(10)
+        gorillagrowl.setMaxDistance(200)
+        gorillagrowl.setDistanceModel('linear')
+        gorillagrowl.setLoop(true)
+        gorillagrowl.setVolume(2)
     })
-}
+    loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
+        gorillarun.setBuffer(buffer)
+        gorillarun.setRefDistance(10)
+        gorillarun.setMaxDistance(200)
+        gorillarun.setDistanceModel('linear')
+        gorillarun.setLoop(true)
+        gorillarun.setVolume(2)
+    })
+    loader2.load('./models/gorilla/sound/idle.mp3', (buffer) => {
+        gorillaideal.setBuffer(buffer)
+        gorillaideal.setRefDistance(10)
+        gorillaideal.setMaxDistance(200)
+        gorillaideal.setDistanceModel('linear')
+        gorillaideal.setLoop(true)
+        gorillaideal.setVolume(2)
+    })
+     loader2.load('./audio/clark/scream.mp3', (buffer) => {
+        clarkrun.setBuffer(buffer)
+        clarkrun.setRefDistance(10)
+        clarkrun.setMaxDistance(200)
+        clarkrun.setDistanceModel('linear')
+        clarkrun.setLoop(true)
+        clarkrun.setVolume(2)
+    })
+     loader2.load('./audio/clark/idle.mp3', (buffer) => {
+        clarkidle.setBuffer(buffer)
+        clarkidle.setRefDistance(10)
+        clarkidle.setMaxDistance(200)
+        clarkidle.setDistanceModel('linear')
+        clarkidle.setLoop(true)
+        clarkidle.setVolume(2)
+    })
+     loader2.load('./audio/clark/groan.mp3', (buffer) => {
+        clarkgrowl.setBuffer(buffer)
+        clarkgrowl.setRefDistance(10)
+        clarkgrowl.setMaxDistance(200)
+        clarkgrowl.setDistanceModel('linear')
+        clarkgrowl.setLoop(true)
+        clarkgrowl.setVolume(2)
+    })
+
 loader2.load('./audio/scream.mp3', (buffer) => {
     crocgrowl.setBuffer(buffer)
     crocgrowl.setRefDistance(10)
@@ -1133,6 +1193,22 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
             if (typeof chasemu !== 'undefined') {
                 fade(chasemu, 0, 1.5, false);
             }
+        }
+    }
+    if(gorilla){
+        const statsu = gorilla.update(delta, player.position)
+        if(statsu === "dead"){
+            gorilla = null
+            console.log('gorilla ded :(')
+            if(typeof gorillagrowl !== 'undefined') safety(gorillagrowl)
+        }
+    }
+    if(clark){
+        const status = clark.update(delta, player.position)
+        if(status === "dead"){
+            clark = null
+            console.log('clark ded :(')
+            if(typeof clarkgrowl !== 'undefined') safety(clarkgrowl)
         }
     }
     player.update(delta)
