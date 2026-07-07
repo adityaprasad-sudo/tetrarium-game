@@ -232,6 +232,29 @@
                  50% { box-shadow: 0 0 30px rgba(255, 0, 0, 0.8); border-color: #ff3333; }
                 100% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); border-color: #ff0000; }
                 }
+                .daymode{
+                        animation: rdflash 0.1s infinite, shake 0.25s infinite;
+                        z-index: 900 !important;
+                }
+                @keyframes rdflash{
+                        0% { box-shadow: inset 0 0 50px rgba(255,0,0,0.8), inset 0 0 200px rgba(255,0,0,0.2); }
+            50% { box-shadow: inset 0 0 150px rgba(255,0,0,1), inset 0 0 800px rgba(255,0,0,0.5); }
+            100% { box-shadow: inset 0 0 50px rgba(255,0,0,0.8), inset 0 0 200px rgba(255,0,0,0.2);
+                }}
+                @keyframes shake{
+                        0% { transform: translate(2px, 1px) rotate(0deg); }
+            20% { transform: translate(-2px, -3px) rotate(-1deg); }
+            40% { transform: translate(-4px, 0px) rotate(1deg); }
+            60% { transform: translate(4px, 3px) rotate(0deg); }
+            80% { transform: translate(2px, -2px) rotate(1deg); }
+            100% { transform: translate(-2px, 3px) rotate(-1deg); }
+                }
+                .daytxt{
+                        color: #ff0000 !important;
+                        text-shadow: 3px 0px 0px #0000ff, -3px 0px 0px #00ff00 !important;
+                        font-weight: bold;
+                        letter-spacing: 2px;
+                }
                 .critical{
                         animation: criticalPulse 1s infinite; color: #ff3333; text-shadow: 0 0 8px #ff0000;
                 }
@@ -391,10 +414,33 @@
     transition: 0.3s;
 
                 }
+     #storytext { font-size: 0.6rem; }
+    .storytitle { font-size:0.9rem; }
+    .loadtxt { font-size: 1.2rem; }
+    @media (max-width: 768px) {
+            #storytext { font-size: 1rem; }
+            .storytitle { font-size: 1.5rem; }
+            .storyobj { margin-top: 20px !important; }
+            .loadtxt { font-size: 1rem; }
+        }
+        #abouttitle{
+                font-size: 5rem;
+        }
+        #abouttext{
+                font-size: 1.2rem;
+        }
+        @media(max-width: 760px){
+                #abouttitle{
+                        font-size: 3rem;
+                }
+                #abouttext{
+                        font-size: 1rem;
+                }
+        }
+
 </style>
 </head>
 <body>
-    
     <div id="menu" class="uilay">
         <h1 class="title">Terrarium</h1>
         <div class="menubtn">
@@ -403,6 +449,15 @@
             <button id = "about">ABOUT</button>
         </div>
     </div>
+    <div id="aboutmenu" class = "uilay" style="display:none; background-color: rgba(5,5,5,0.95); z-index: 200;">
+        <h1 class="title" id="abouttitle">ABoUT</h1>
+        <div id="abouttext" style="width: 90%; max-width: 600px; text-align: center; line-height: 1.6;">
+           <p>Making an about page</p>
+           <p>idk right now</p>
+           <p style="margin-top: 30px; color: #555; font-size: 0.9em;">Developed by aditya for horizons</p>
+           </div>
+           <button id = "backbtn2" style="margin-top: 40px">BACK</button>
+    </div>
     <div id = "loadingscr" class="uilay" style="display: none">
         <h2 class="loadingtxt" id="loadingtxt">LOADING BACKROOMS</h2>
         <div class="loadingbarcunt">
@@ -410,13 +465,13 @@
         </div>
     </div>
     <div id="storyscr" class="uilay" style="display: none; background-color: #000; z-index: 150;">
-        <div style="max-width: 800px; text-align: center; font-size: 1.5rem; line-height: 1.8; color: #ddd; text-shadow: 2px 2px 0px #000; margin-bottom: 50px;">
-            <p style="color: #8b0000; font-weight: bold; font-size: 2rem;">JANUARY 1st, 2027.</p>
+        <div id="storytext" style="width: 90%; max-width: 800px; text-align: center; line-height: 1.8; color: #ddd; text-shadow: 2px 2px 0px #000; margin-bottom: 50px;">
+            <p class="storytitle" style="color: #8b0000; font-weight: bold;">JANUARY 1st, 2027.</p>
             <p>You are chosen to be a part of the Terrarium project.</p>
-            <p>The Facility has or had 15 terariums around the facility out of which 5 tetrariums have been mutated and thier whereabouts are  unknown.</p>
-            <p style="color: #20C20E; margin-top: 40px;">Your objective is to find the 10 tetrariums and be carefull as we dont know what happened to the other five tetrariums.</p>
+            <p>The Facility has or had 15 terariums around the facility out of which 5 tetrariums have been mutated and their whereabouts are unknown.</p>
+            <p class="storyobj" style="color: #20C20E; margin-top: 40px;">Your objective is to find the 10 tetrariums and be careful as we dont know what happened to the other five tetrariums.</p>
         </div>
-        <div class="loadtxt" style="font-size: 1.2rem; color: #667;">Press any key to start...</div>
+        <div class="loadtxt" style="color: #667;">Press any key to start...</div>
     </div>
     <div id="settingmenu" class = "uilay" style="display:none">
         <h1 class="title" style="font-size:3rem">SETTINGS</h1>
@@ -463,6 +518,7 @@
         </div>
     </div>
     <video id="reboovid" class="vid" src="video/reboot.mp4" playsinline></video>
+    
     <div id="hud" style="display:none; position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50;">
         <div id= "mobile" class="smallscr">
             <button id="pause" class="pausebtn">||</button>
@@ -530,7 +586,8 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
-    <script  src="js/mechanism.js"></script>
+    
     <script  src="js/menu.js"></script>
+    <script  src="js/mechanism.js"></script>
 </body>
 </html>

@@ -29,6 +29,7 @@ class floatingshit{
                         init(){
                         }
                         healthup(amount){
+                            if (typeof dayum !== 'undefined' && dayum && amount < 0) return;
                                 this.health = Math.max(0, Math.min(this.maxheath, this.health + amount))
                                 this.healthbar.style.width = `${this.health / this.maxheath * 100}%`
                                 if(this.health <=0){
@@ -66,6 +67,9 @@ class floatingshit{
                                 }
                         }
                         stamina(delta, sprint, ismove){
+                            if (typeof dayum !== 'undefined' && dayum) {
+            this.staminalevel = this.maxstamia;
+        }
                             if(this.staminalevel <= 0){
     stawarn.play()
 }else{
@@ -282,6 +286,36 @@ flashlight.target.position.set(0, 0, -1)
 scene.add(camera)
 const staker = []
 const lastpos = new THREE.Vector3(6, 0, 0)
+function safespawn(array){
+    if(collide.length === 0) return;
+    for(let i = 0; i < array.length; i++){
+        let item = array[i]
+        if(!item.issafe){
+            let checkpos = new THREE.Vector3(item.position.x, 1, item.position.z)
+            item.visible = false
+            let hitwall = false
+            const dirs = [
+                new THREE.Vector3(1,0,0), new THREE.Vector3(-1,0,0),
+                new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,-1)
+            ]
+            for(let dir of dirs){
+                const ray = new THREE.Raycaster(checkpos, dir,0, 1.5)
+                if(ray.intersectObjects(collide, true).length > 0){
+                    hitwall = true; 
+                    break
+                }
+            }
+            if(!hitwall){
+                item.issafe = true
+                item.visible = true
+            }else{
+                item.position.x = (Math.random() * 300) - 150
+                item.position.z = (Math.random() * 300) - 150
+            }
+            }
+        }
+    } 
+
 class cronpc { 
     constructor(scene, gltf, startx, startz) {
         this.mesh = gltf.scene;
@@ -321,43 +355,45 @@ class cronpc {
     }
     
     changestate(newstate, actionName) {
-        if (this.currentstatee === newstate || !this.actions[actionName]) return
-        if(newstate === 'chase' && this.currentstatee !== 'chase'){
-            fade(chasemu, 0.6, 0.5, false);
-            if(this.growl && !this.growl.isPlaying) this.growl.play();
+        if (this.currentstatee === newstate || !this.actions[actionName]) return;
+        if (newstate === 'chase' || newstate === 'attack') {
+            if (this.currentstatee !== 'chase' && this.currentstatee !== 'attack') {
+                fade(chasemu, 0.6, 0.5, false);
+                if (this.growl && !this.growl.isPlaying) this.growl.play();
+                if (this.ideal) safety(this.ideal);
+            }
         }
-        if(newstate === 'patrol' && this.currentstatee === 'chase'){
+        if (newstate === 'patrol' || newstate === 'idle') {
             fade(chasemu, 0, 2.5, false);
-            if(this.growl) safety(this.growl)
-            if(this.ideal && !this.ideal.isPlaying) this.ideal.play();
+            if (this.growl) safety(this.growl);
+            if (this.runaud) safety(this.runaud); 
+            if (newstate === 'patrol' && this.ideal && !this.ideal.isPlaying) this.ideal.play();
         }
-        if(newstate === 'flee' && this.currentstatee !== 'flee'){
+
+        if (newstate === 'flee') {
             fade(chasemu, 0, 2.5, true);
-            if(this.growl)safety(this.growl)
-            if(this.ideal)safety(this.ideal)
-            if(this.runaud && !this.runaud.isPlaying) this.runaud.play();
+            if (this.growl) safety(this.growl);
+            if (this.ideal) safety(this.ideal);
+            if (this.runaud && !this.runaud.isPlaying) this.runaud.play();
         }
-        if (this.currentstatee === 'chase' && newstate !== 'chase') {
-            fade(chasemu, 0, 2.5, false);
-        }
-        this.currentstatee = newstate
-        const prevstate = this.currentaction
-        const newact = this.actions[actionName]
-this.currentstatee = newstate
-        newact.reset()
-        newact.setEffectiveTimeScale(1)
-        newact.setEffectiveWeight(1)
+
+        this.currentstatee = newstate;
+        const prevstate = this.currentaction;
+        const newact = this.actions[actionName];
         
-        newact.play()
-        if(prevstate){
-            prevstate.crossFadeTo(newact, 0.3, true)
-            
+        newact.reset();
+        newact.setEffectiveTimeScale(1);
+        newact.setEffectiveWeight(1);
+        newact.play();
+
+        if (prevstate) {
+            prevstate.crossFadeTo(newact, 0.3, true);
         }
         
-        this.currentaction = newact
+        this.currentaction = newact;
     }
     
-    applyGravity() {
+    applyGravity(timesc) {
         const ray = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 1, this.mesh.position.z)
         const down = new THREE.Vector3(0, -1, 0)
         const raycast = new THREE.Raycaster(ray, down)
@@ -365,8 +401,8 @@ this.currentstatee = newstate
         let height = -100;
         if (hit.length > 0) height = hit[0].point.y
         
-        this.velocityy += this.gravity
-        this.mesh.position.y += this.velocityy
+        this.velocityy += this.gravity * timesc
+        this.mesh.position.y += this.velocityy * timesc
         
         if (this.mesh.position.y <= height) {
             this.velocityy = 0
@@ -375,19 +411,24 @@ this.currentstatee = newstate
     }
     
     update(chatime, pos) {
-        console.log('state:', this.currentstatee, 'dayum:', dayum, 'ishide:', player.ishide)
-        if (this.mixer) this.mixer.update(chatime)
-        this.applyGravity()
+        if (this.mixer) {this.mixer.update(chatime)};
+            const timesc = chatime *60
+            const walkcun = this.walkspeed * timesc
+            const runcun = this.run * timesc
+        this.applyGravity(timesc)
         const dx = pos.x - this.mesh.position.x
         const dz = pos.z - this.mesh.position.z
         let distpl = Math.sqrt(dx * dx + dz * dz)
         if(player.ishide){
             distpl = 9999
+            if(!dayum && this.currentstatee !== 'flee'){
+                this.changestate('idle', 'idle')
+            }
             if(this.currentstatee === 'chase' || this.currentstatee === 'attack'){
                 this.changestate('patrol', 'walk' )
                 this.mesh.rotateY(Math.PI)
             }
-            this.dumb(this.walkspeed)
+            this.dumb(walkcun)
             
                 return "alive"
         }
@@ -411,7 +452,7 @@ this.currentstatee = newstate
                 }
             }
             const trag = new THREE.Vector3(this.mesh.position.x + fleedir.x *10, this.mesh.position.y, this.mesh.position.z + fleedir.z *10)
-            this.dumb(this.run, trag, true)
+            this.dumb(runcun, trag, true)
             return "alive"
         }
         if (!dayum && this.currentstatee === 'flee') {
@@ -424,14 +465,14 @@ this.currentstatee = newstate
                 if (distpl < this.radius) this.changestate('chase', 'run')
                 break;
             case 'patrol':
-                this.dumb(this.walkspeed);
+                this.dumb(walkcun);
                 if (Math.random() < 0.005) this.changestate('idle', 'idle')  
                 if (distpl < this.radius) this.changestate('chase', 'run')
                     if(Math.random() < 0.5 && this.ideal && !this.ideal.isPlaying) this.ideal.play();
                 break
             case 'chase':
                   
-                this.dumb(this.run, pos)
+                this.dumb(runcun, pos)
                 if (distpl < this.attradi) {
                     this.changestate('attack', 'attack')
                 } else if (distpl > this.radius * 1.5) {
@@ -705,13 +746,15 @@ const movy = Math.max(-maxdelta, Math.min(maxdelta, e.movementY))
             return
         }
         let dx = 0, dz = 0;
-        if (this.key.w) { dx -= Math.sin(this.yaw) * this.speed; dz -= Math.cos(this.yaw) * this.speed }
+        const timesc = delta * 60
+        const speedcun = this.speed *  timesc
+        if (this.key.w) { dx -= Math.sin(this.yaw) * speedcun; dz -= Math.cos(this.yaw) * speedcun }
         if (this.key.s) { 
-            dx += Math.sin(this.yaw) * this.speed; dz += Math.cos(this.yaw) * this.speed}
+            dx += Math.sin(this.yaw) * speedcun; dz += Math.cos(this.yaw) * speedcun}
         if (this.key.a) {
-             dx -= Math.cos(this.yaw) * this.speed; dz += Math.sin(this.yaw) * this.speed }
+             dx -= Math.cos(this.yaw) * speedcun; dz += Math.sin(this.yaw) * speedcun }
         if (this.key.d) { 
-            dx += Math.cos(this.yaw) * this.speed; dz -= Math.sin(this.yaw) * this.speed }
+            dx += Math.cos(this.yaw) * speedcun; dz -= Math.sin(this.yaw) * speedcun }
         const dez = Math.sqrt(dx * dx + dz * dz)
         if(dez>0){
             const dez2 = new THREE.Vector3(dx, 0, dz).normalize()
@@ -727,7 +770,9 @@ this.position.x += dx
         
         if(this.key.shift && ismove && this.stamina > 0 && !this.ishide){
             this.speed = this.sprintspeed
-            this.stamina -= 25*delta
+            if (typeof dayum === 'undefined' || !dayum) {
+                this.stamina -= 25 * delta;
+            }
             this.cooldown = 2
             if(this.stamina <= 0 && this.cooldown <= 0){
             this.cooldown = 5
@@ -760,7 +805,6 @@ this.position.x += dx
         }else{
             this.dis = 0
         }
-        
 
         const rayorg = new THREE.Vector3(this.position.x, this.position.y + 1, this.position.z)
         const downvec = new THREE.Vector3(0, -1, 0);
@@ -771,8 +815,8 @@ this.position.x += dx
     
         if (hit.length > 0) height = hit[0].point.y
         
-        this.velocity.y += this.gravity
-        this.position.y += this.velocity.y
+        this.velocity.y += this.gravity * timesc
+        this.position.y += this.velocity.y * timesc
         
         if (this.position.y - 1.6 <= height) {
             this.velocity.y = 0
@@ -805,7 +849,6 @@ const hidespo = []
 const loader = new THREE.GLTFLoader();
 loader.load('./models/backrooms_level_0.glb', (gltf) => {
     const mpmodel = gltf.scene
-    
     const box = new THREE.Box3().setFromObject(mpmodel)
     const center = box.getCenter(new THREE.Vector3())
     mpmodel.position.x = -center.x
@@ -843,48 +886,27 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
 const bottles = []
 loader.load('./models/bottle/bottle.glb', (gltf) => {
     
-    const sapwn = [
-        { x: 8.34, z: -41.569},
-        { x: -1.01, z: -61.214},
-        { x: -33.56, z: 6.211},
-        { x: -61.17, z: -3.46},
-        { x: -92.28, z: -30.24},
-        { x: -110.8, z: -41.992},
-        { x: -90.920, z: -78.247},
-        { x: -56.011, z: -75.391},
-        { x: 26.94, z: -105.97},
-        { x: 56.94, z: -95.368},
-        { x: 125.25, z: -60.815},
-        { x: 149.3, z: -41.737},
-        { x: 179.56, z: -57.61},
-        { x: 156.26, z: -38.169},
-        { x: 137.68, z: -28.12},
-        { x: 105, z: 9.26},
-        { x: 45.34, z: 6.094},
-        { x: 31.4, z: 27.655},
-        { x: -44.6, z: 45.704},
-        { x: 13.48, z: 79.515},
-        { x: 50.468, z: 76.627},
-    ]
-    sapwn.forEach((pos) => {
+    const toatal= 50
+    const mp = 300
+    for(let i = 0; i < toatal; i++){
         const item = gltf.scene.clone()
-        item.scale.set(10, 10, 10)
-        item.position.set(pos.x,0, pos.z)
+        item.scale.set(7, 7, 7)
+        item.position.set((Math.random() * mp) - mp/2,0, (Math.random() * mp) - mp/2)
         scene.add(item)
         bottles.push(item)
-    })
+    }
 })
 const choco = []
 loader.load('./models/chocolate/Untitled.glb', (gltf) => {
-    const toatal= 30
-    const mp = 200
+    const toatal= 50
+    const mp = 300
     for(let i = 0; i < toatal; i++){
         const item = gltf.scene.clone()
         item.scale.set(3, 3, 3)
         item.position.set((Math.random() * mp) - mp/2,0, (Math.random() * mp) - mp/2)
         scene.add(item)
         choco.push(item)
-    } 
+    }
 })
 let croc = false
 let groi = false
@@ -894,7 +916,7 @@ loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocgrowl)
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
-    console.log(gltf.animations)
+
     crocnpc = new cronpc(scene, gltf, -20, -50) 
     crocnpc.growl = crocgrowl
     crocnpc.runaud = crocrun
@@ -903,18 +925,17 @@ loader.load('./models/crocodile.glb', (gltf) => {
 loader.load('./models/gorilla/gorilla.glb', (gltf) => {
     gltf.scene.add(gorillagrowl)
     gltf.scene.add(gorillaideal)
-    console.log(gltf.animations)
-    gorilla = new cronpc(scene, gltf, 20, 20) 
+
+    gorilla = new cronpc(scene, gltf, 20, 20)
     gorilla.growl= gorillagrowl
     gorilla.ideal = gorillaideal
     gorilla.runaud = gorillarun
 }, undefined, (error) => console.error(error))
 loader.load('./models/clark/clark.glb', (gltf) => {
-    
     gltf.scene.add(clarkgrowl)
     gltf.scene.add(clarkidle)
     gltf.scene.add(clarkrun)
-    console.log(gltf.animations)
+
     clark = new cronpc(scene, gltf, 10, 20)
     clark.growl= clarkgrowl
     clark.ideal = clarkidle
@@ -954,8 +975,7 @@ const clarkgrowl = new THREE.PositionalAudio(listen)
     crocgrowl.setLoop(true)
     crocgrowl.setVolume(2)
 })
-
-    loader2.load('./models/gorilla/sound/gorillascream.mp3', (buffer) => {
+loader2.load('./models/gorilla/sound/gorillascream.mp3', (buffer) => {
         gorillagrowl.setBuffer(buffer)
         gorillagrowl.setRefDistance(10)
         gorillagrowl.setMaxDistance(200)
@@ -963,7 +983,7 @@ const clarkgrowl = new THREE.PositionalAudio(listen)
         gorillagrowl.setLoop(true)
         gorillagrowl.setVolume(2)
     })
-    loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
+loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         gorillarun.setBuffer(buffer)
         gorillarun.setRefDistance(10)
         gorillarun.setMaxDistance(200)
@@ -1059,17 +1079,17 @@ window.addEventListener('resize', () => {
         antialai.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
     }
 });
+const terra = []
 loader.load('./models/terrarium.glb', (gltf) => {
-    const spawn =[
-        { x: -89.72, z: -150.74 },
-    ]
-    spawn.forEach((pos) => {
+    const toatal= 10
+    const mp = 300
+    for(let i = 0; i < toatal; i++){
         const item = gltf.scene.clone()
         item.scale.set(0.5, 0.5, 0.5)
-        item.position.set(pos.x,-0.3, pos.z)
+        item.position.set((Math.random() * mp) - mp/2,0, (Math.random() * mp) - mp/2)
         scene.add(item)
-        terreriums.push(item)
-    })
+        terra.push(item)
+    }
 })
 const power = []
 let dayum = false
@@ -1081,17 +1101,17 @@ function dayummode(dayum){
 }
 
 let kama = 0
+const powerball = []
 loader.load('./models/powerball.glb', (gltf) => {
-    const spawn =[
-        { x: -89.72, z: -150.74 },
-    ]
-    spawn.forEach((pos) => {
+    const toatal= 3
+    const mp = 300
+    for(let i = 0; i < toatal; i++){
         const item = gltf.scene.clone()
-        item.scale.set(0.01, 0.01, 0.01)
-        item.position.set(pos.x,0, pos.z)
+        item.scale.set(0.07, 0.07, 0.07)
+        item.position.set((Math.random() * mp) - mp/2,0, (Math.random() * mp) - mp/2)
         scene.add(item)
-        power.push(item)
-    })
+        powerball.push(item)
+    } 
 })
 let timer = 0
 const musicdayum = new Audio('./audio/dayummode.mp3');
@@ -1099,6 +1119,10 @@ const ui = document.getElementById('timothy')
 
 function anim() {
     requestAnimationFrame(anim);
+    safespawn(terra)
+    safespawn(bottles)
+    safespawn(powerball)
+    safespawn(choco)
 
     if(!gamestart || window.isdead || window.pause) {
         if (gamestart) time.getDelta();
@@ -1112,20 +1136,20 @@ function anim() {
     playerhud.y *= 0.9
     playerhud.floatphy(delta)
     playerhud.stamina(delta, player.key.shift, ismove)
-    for(let i = terreriums.length -1; i >= 0; i--){
-        let item = terreriums[i]
+    for(let i = terra.length -1; i >= 0; i--){
+        let item = terra[i]
         const dx = player.position.x - item.position.x
         const dz = player.position.z - item.position.z
         const horidis = Math.sqrt(dx * dx + dz * dz)
         if(horidis < 2.5){
-            terreriums.splice(i, 1)
+            terra.splice(i, 1)
             scene.remove(item)
             earned ++;
             console.log(earned)
         }
     }
-    for(let i = power.length -1; i >= 0; i--){
-        let item = power[i]
+    for(let i = powerball.length -1; i >= 0; i--){
+        let item = powerball[i]
         const dx = player.position.x - item.position.x
         const dz = player.position.z - item.position.z
         const horidis = Math.sqrt(dx * dx + dz * dz)
@@ -1134,7 +1158,7 @@ function anim() {
             dayum = true
             timer = 53
             ui.style.display = 'block'
-            power.splice(i, 1)
+            powerball.splice(i, 1)
             scene.remove(item)
             musicdayum.currentTime = 0;
             musicdayum.play()
@@ -1167,13 +1191,35 @@ function anim() {
     }
     if(dayum){
     timer -= delta
-    ui.innerText = "DAYUM: " + Math.ceil(timer)
+    const chars = "!<>-_\\\\/[]{}—=+*^?#________"
+    let randchar = chars[Math.floor(Math.random() * chars.length)]
+    ui.innerText = `SYS_OVRFLW [ ${Math.ceil(timer)} ] ${randchar}`;
+    ui.classList.add('daytxt', 'glitchy');
+    playerhud.healthstat.innerText = 'STATUS: ♾️ FATAL_ERR'
+    playerhud.healthstat.classList.add('daytxt')
+    playerhud.staminastat.innerText = 'STATUS: ♾️ OVR_FLW'
+    playerhud.staminastat.classList.add('daytxt')
+    playerhud.healthbar.style.width = '100%'
+    playerhud.staminabar.style.width = '100%'
+    playerhud.healthbar.style.backgroundColor = '#ff0000'
+    playerhud.staminabar.style.backgroundColor = '#ff0000'
+    playerhud.healthpan.classList.add('glitchy')
+    playerhud.staminapan.classList.add('glitchy')
+    document.getElementById('bodycam').classList.add('daymode')
     if(timer <= 0){
-    dayum = false
-   ui.style.display = 'none'
-    musicdayum.pause();
+        dayum = false
+        ui.style.display = 'none'
+        musicdayum.pause()
+        ui.classList.remove('daytxt', 'glitchy');
+        playerhud.healthstat.classList.remove('daytxt')
+        playerhud.staminastat.classList.remove('daytxt')
+        playerhud.healthpan.classList.remove('glitchy')
+        playerhud.staminapan.classList.remove('glitchy')
+        document.getElementById('bodycam').classList.remove('daymode')
+        playerhud.healthup(0)
     }
 }
+
 if(!player.ishide && player.position.distanceTo(lastpos) > 2){
     staker.push(player.position.clone())
     lastpos.copy(player.position)
@@ -1201,6 +1247,8 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
             gorilla = null
             console.log('gorilla ded :(')
             if(typeof gorillagrowl !== 'undefined') safety(gorillagrowl)
+                if(typeof gorillarun !== 'undefined') safety(gorillarun) 
+            if(typeof gorillaideal !== 'undefined') safety(gorillaideal)
         }
     }
     if(clark){
@@ -1209,6 +1257,8 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
             clark = null
             console.log('clark ded :(')
             if(typeof clarkgrowl !== 'undefined') safety(clarkgrowl)
+                if(typeof clarkrun !== 'undefined') safety(clarkrun) 
+            if(typeof clarkidle !== 'undefined') safety(clarkidle)
         }
     }
     player.update(delta)
@@ -1247,5 +1297,19 @@ window.respawn = function(){
     }
     const mobiel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if(!mobiel){document.body.requestPointerLock()}
+}
+window.pausetog = function(ispause){
+    window.pause = ispause
+    if(ispause){
+        if(typeof listen !== 'undefined' && listen.context.state !== 'running'){
+            listen.context.suspend()
+        }
+        if(typeof musicdayum !== 'undefined' && !musicdayum.paused) musicdayum.pause();
+    }else{
+        if(typeof listen !== 'undefined' && listen.context.state === 'suspended'){
+            listen.context.resume()
+        }
+        if(typeof musicdayum !== 'undefined' && dayum) musicdayum.play();
+    }
 }
 anim()

@@ -11,6 +11,9 @@ const btnquit = document.getElementById('btnquit')
 const btnplay = document.getElementById('btnplay')
 const btnsettings = document.getElementById('settings')
 const backbtnsett = document.getElementById('backbtn')
+const about = document.getElementById('about')
+const scrab = document.getElementById('aboutmenu')
+const backabt = document.getElementById('backbtn2')
 btnplay.addEventListener('click', () =>{
     const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
     if(mobile && document.documentElement.requestFullscreen){
@@ -41,6 +44,14 @@ btnplay.addEventListener('click', () =>{
     window.addEventListener('touchstart', startgm)
     window.addEventListener('touchmove', startgm)
         }, 5000)
+})
+about.addEventListener('click', () => {
+    mainmenu.style.display = 'none'
+    scrab.style.display = 'flex'
+})
+backabt.addEventListener('click', () => {
+    mainmenu.style.display = 'flex'
+    scrab.style.display = 'none'
 })
     const pausem = document.getElementById('pause')
     if(pausem){
