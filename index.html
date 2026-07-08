@@ -44,6 +44,58 @@
             background: radial-gradient(circle, transparent 65%, rgba(0,0,0,0.8) 80%, #000 95%);
             box-shadow: inset 0 0 10px rgba(0,0,0,1);
         }
+        .calling{
+            background-color: rgba(10,10,10, 0.9);
+            border: 2px solid #ff0000;
+            box-shadow: 0 0 20px rgba(255, 0,0, 0.5), inset 0 0 15px rgba(255, 0, 0, 0.2);
+            width: 90%;
+            max-width: 500px;
+            padding: 20px;
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 10;
+        }
+        .callhead{
+            width: 100%;
+            border-bottom: 1px solid #550000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: #ff0000;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+        }
+        .cardprof{
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .cardava{
+            width: 80px;
+            height: 80px;
+            background: repeating-linear-gradient(45deg, #222, #222 5px, #000 5px, #000 10px);
+            border: 1px solid #ff0000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            color: #550000;
+            font-weight: bold;
+        }
+        .cardmsg {
+            color: #ddd;
+            font-size: clamp(1rem, 3.5vw, 1.2rem);
+            line-height: 1.6;
+            text-align: left;
+            border-left: 3px solid #ff0000;
+            padding-left: 15px;
+            text-shadow: 1px 0px 0px #f00, -1px 0px 0px #00f;
+        }
         #loadingbar{
             width: 0%;
             height: 100%;
@@ -437,6 +489,30 @@
                         font-size: 1rem;
                 }
         }
+        .virus{
+            background-color: rgba(15,0,0,0.95);
+            animation: rdflash 0.2s infinite
+        }
+        .screentaer{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.5), rgba(0,0,0,0.5) 2px, transparent 2px, transparent 4px);
+            animation: shake 0.1s infinite, tergi 0.3s infinite; 
+            z-index: -1;
+        }
+        @keyframes tergi{
+           0% { transform: skewX(0deg) translateX(0); filter: hue-rotate(0deg); }
+            20% { transform: skewX(10deg) translateX(-10px); filter: hue-rotate(90deg); }
+            40% { transform: skewX(-15deg) translateX(15px); filter: hue-rotate(-90deg); }
+            60% { transform: skewX(5deg) translateX(-5px); filter: hue-rotate(180deg); }
+            80% { transform: skewX(-20deg) translateX(20px); filter: hue-rotate(-180deg); }
+            100% { transform: skewX(0deg) translateX(0); filter: hue-rotate(0deg); }
+        }
+
 
 </style>
 </head>
@@ -572,6 +648,32 @@
             <button id = "btnquit">QUIT</button>
         </div>
     </div>
+    <div id="endscr" class="uilay virus" style="display: none; z-index: 999 ; flex-direction: column;">
+        <div id="virusove" class="screentaer" style="opacity: 0; transition: opacity 10s ease-in;"></div>
+    <div id="callingcard" class="calling glitchy">
+        <div class="callhead">
+            <span>INCOMING_TRANSMISSION</span>
+            <span class="critical">REC // SECURE</span>
+        </div>
+        <div class="cardprof">
+            <div class="cardava">?</div>
+            <div style="display: flex; flex-direction: column; text-align: left;">
+                    <span style="color: #888; font-size: 0.8rem; letter-spacing: 2px;">CALLER ID:</span>
+                    <span style="color: #ff0000; font-weight: bold; font-size: clamp(1.2rem, 4vw, 1.8rem); letter-spacing: 5px;">[ CLASSIFIED ]</span>
+            </div>
+            </div>
+            <div class="cardmsg">
+                "Thank you for Your service......."
+                <span style="color: #ff0000; font-weight: bold; font-size: 1.1em;">But now you are one of them.</span>"
+            </div>
+        </div>
+        <h1 id ="syscorrupt" class="title glitchy" style="display: none; color: #ff0000; text-shadow: 4px 4px 0px #330000; font-size: clamp(3rem, 8vw, 6rem); margin-bottom: 20px;">STS_CORRUPTED</h1>
+    <div id="endbtn" class="menubtn" style="display: none; gap: 30px; flex-direction: row; flex-wrap: wrap; justify-content: center;">
+        <button id="giveup" style="color: #ff0000; border-color: #ff0000; font-weight: bold; background-color: rgba(255,0,0,0.1);">GIVE UP</button>
+            <button id="selfdestruct" style="color: #ff0000; border-color: #ff0000; font-weight: bold; background-color: rgba(255,0,0,0.1);">SELF DESTRUCT</button>
+    </div>
+    </div>
+
 
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

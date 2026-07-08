@@ -280,9 +280,8 @@ function safety(audio){
 const flashlight = new THREE.SpotLight(0xffffff,2, 50, Math.PI / 6, 0.5, 1)
 flashlight.castShadow = true
 flashlight.position.set(0, 0, 0)
-camera.add(flashlight)
-camera.add(flashlight.target)
-flashlight.target.position.set(0, 0, -1)
+scene.add(flashlight)
+scene.add(flashlight.target)
 scene.add(camera)
 const staker = []
 const lastpos = new THREE.Vector3(6, 0, 0)
@@ -314,8 +313,7 @@ function safespawn(array){
             }
             }
         }
-    } 
-
+    }
 class cronpc { 
     constructor(scene, gltf, startx, startz) {
         this.mesh = gltf.scene;
@@ -325,6 +323,7 @@ class cronpc {
             if (child.isMesh) {
                 child.castShadow = true
                 child.receiveShadow = true
+                child.frustumCulled = false
             }
         })
         scene.add(this.mesh)
@@ -335,7 +334,12 @@ class cronpc {
             idle: this.mixer.clipAction(this.getanim('idle')),
             walk: this.mixer.clipAction(this.getanim('walk')),
             run: this.mixer.clipAction(this.getanim('run')),
-            attack: this.mixer.clipAction(this.getanim('attack'))
+            attack: this.mixer.clipAction(this.getanim('attack')),
+            death: this.mixer.clipAction(this.getanim('death'))
+        }
+        if(this.actions.death){
+            this.actions.death.setLoop(THREE.LoopOnce)
+            this.actions.death.clampWhenFinished = true
         }
         
         this.currentstatee = 'idle'
@@ -343,17 +347,17 @@ class cronpc {
         if (this.currentaction) this.currentaction.play()
         
         this.walkspeed = 0.05
-        this.run = 0.14
-        this.radius = 15
-        this.attradi = 5
+        this.run = 0.18
+        this.radius = 10
+        this.attradi = 2
         this.gravity = -0.05
         this.velocityy = 0
+        this.died = false
+        this.dietime = 2.5
     }
-    
     getanim(name) {
         return this.animations.find(a => a.name.toLowerCase().includes(name.toLowerCase())) || this.animations[0]
     }
-    
     changestate(newstate, actionName) {
         if (this.currentstatee === newstate || !this.actions[actionName]) return;
         if (newstate === 'chase' || newstate === 'attack') {
@@ -391,8 +395,7 @@ class cronpc {
         }
         
         this.currentaction = newact;
-    }
-    
+    } 
     applyGravity(timesc) {
         const ray = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 1, this.mesh.position.z)
         const down = new THREE.Vector3(0, -1, 0)
@@ -409,12 +412,19 @@ class cronpc {
             this.mesh.position.y = height
         }
     }
-    
     update(chatime, pos) {
         if (this.mixer) {this.mixer.update(chatime)};
             const timesc = chatime *60
             const walkcun = this.walkspeed * timesc
             const runcun = this.run * timesc
+            if(this.died){
+                this.dietime -= chatime
+                this.applyGravity(timesc)
+                if(this.dietime <= 0){
+                    return "dead"
+                }
+                return "alive"
+            }
         this.applyGravity(timesc)
         const dx = pos.x - this.mesh.position.x
         const dz = pos.z - this.mesh.position.z
@@ -434,8 +444,14 @@ class cronpc {
         }
         if(dayum){
             if(distpl < 4){
-                scene.remove(this.mesh);
-                return "dead"
+                if(!this.died){
+                    this.died = true
+                    if(this.growl) safety(this.growl);
+                    if(this.runaud) safety(this.runaud);
+                    if(this.ideal) safety(this.ideal);
+                    this.changestate('dead', 'death')
+                }
+                return "alive"
             }
             this.changestate('flee', 'run')
             const chesy = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y +1, this.mesh.position.z
@@ -513,7 +529,6 @@ class cronpc {
                     if(dissta > 0.5 && dissta < 30) {
                     const losray = new THREE.Raycaster(chesy, dirsta, 0, dissta)
                     if(losray.intersectObjects(collide, true).length === 0){
-                        
                         dir = dirsta
                         targ = true
                         break
@@ -724,8 +739,7 @@ const movy = Math.max(-maxdelta, Math.min(maxdelta, e.movementY))
                 }
             })
         }
-    },    
-    
+    },
     update: function(delta) {
         this.actloc = null
         for(let locker of hidespo){
@@ -857,7 +871,7 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
     mpmodel.traverse((child) => {
         if (child.isMesh) {
             child.castShadow =  false
-            child.receiveShadow = true
+            child.receiveShadow = false
             if(child.name.toLowerCase().includes('object_6')){
                 child.material = child.material.clone()
                 child.material.emissiveMap = child.material.map
@@ -866,7 +880,6 @@ loader.load('./models/backrooms_level_0.glb', (gltf) => {
             }
             if(child.name.includes('collide')){
                 child.visible = false
-
                 collide.push(child)
                 hidespo.push(child)
 
@@ -917,7 +930,7 @@ loader.load('./models/crocodile.glb', (gltf) => {
     gltf.scene.add(crocideal)
     gltf.scene.add(crocrun)
 
-    crocnpc = new cronpc(scene, gltf, -20, -50) 
+    crocnpc = new cronpc(scene, gltf, -50, -50) 
     crocnpc.growl = crocgrowl
     crocnpc.runaud = crocrun
     crocnpc.ideal = crocideal
@@ -926,7 +939,7 @@ loader.load('./models/gorilla/gorilla.glb', (gltf) => {
     gltf.scene.add(gorillagrowl)
     gltf.scene.add(gorillaideal)
 
-    gorilla = new cronpc(scene, gltf, 20, 20)
+    gorilla = new cronpc(scene, gltf,50, 50)
     gorilla.growl= gorillagrowl
     gorilla.ideal = gorillaideal
     gorilla.runaud = gorillarun
@@ -935,8 +948,7 @@ loader.load('./models/clark/clark.glb', (gltf) => {
     gltf.scene.add(clarkgrowl)
     gltf.scene.add(clarkidle)
     gltf.scene.add(clarkrun)
-
-    clark = new cronpc(scene, gltf, 10, 20)
+    clark = new cronpc(scene, gltf, 70, 30)
     clark.growl= clarkgrowl
     clark.ideal = clarkidle
     clark.runaud = clarkrun
@@ -982,7 +994,7 @@ loader2.load('./models/gorilla/sound/gorillascream.mp3', (buffer) => {
         gorillagrowl.setDistanceModel('linear')
         gorillagrowl.setLoop(true)
         gorillagrowl.setVolume(2)
-    })
+})
 loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         gorillarun.setBuffer(buffer)
         gorillarun.setRefDistance(10)
@@ -990,7 +1002,7 @@ loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         gorillarun.setDistanceModel('linear')
         gorillarun.setLoop(true)
         gorillarun.setVolume(2)
-    })
+})
     loader2.load('./models/gorilla/sound/idle.mp3', (buffer) => {
         gorillaideal.setBuffer(buffer)
         gorillaideal.setRefDistance(10)
@@ -998,7 +1010,7 @@ loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         gorillaideal.setDistanceModel('linear')
         gorillaideal.setLoop(true)
         gorillaideal.setVolume(2)
-    })
+})
      loader2.load('./audio/clark/scream.mp3', (buffer) => {
         clarkrun.setBuffer(buffer)
         clarkrun.setRefDistance(10)
@@ -1006,7 +1018,7 @@ loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         clarkrun.setDistanceModel('linear')
         clarkrun.setLoop(true)
         clarkrun.setVolume(2)
-    })
+})
      loader2.load('./audio/clark/idle.mp3', (buffer) => {
         clarkidle.setBuffer(buffer)
         clarkidle.setRefDistance(10)
@@ -1014,7 +1026,7 @@ loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         clarkidle.setDistanceModel('linear')
         clarkidle.setLoop(true)
         clarkidle.setVolume(2)
-    })
+})
      loader2.load('./audio/clark/groan.mp3', (buffer) => {
         clarkgrowl.setBuffer(buffer)
         clarkgrowl.setRefDistance(10)
@@ -1022,8 +1034,7 @@ loader2.load('./models/gorilla/sound/gorillarun.mp3', (buffer) => {
         clarkgrowl.setDistanceModel('linear')
         clarkgrowl.setLoop(true)
         clarkgrowl.setVolume(2)
-    })
-
+})
 loader2.load('./audio/scream.mp3', (buffer) => {
     crocgrowl.setBuffer(buffer)
     crocgrowl.setRefDistance(10)
@@ -1078,10 +1089,10 @@ window.addEventListener('resize', () => {
         antialai.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pr);
         antialai.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pr);
     }
-});
+})
 const terra = []
 loader.load('./models/terrarium.glb', (gltf) => {
-    const toatal= 10
+    const toatal = 10
     const mp = 300
     for(let i = 0; i < toatal; i++){
         const item = gltf.scene.clone()
@@ -1103,7 +1114,7 @@ function dayummode(dayum){
 let kama = 0
 const powerball = []
 loader.load('./models/powerball.glb', (gltf) => {
-    const toatal= 3
+    const toatal= 2
     const mp = 300
     for(let i = 0; i < toatal; i++){
         const item = gltf.scene.clone()
@@ -1145,7 +1156,9 @@ function anim() {
             terra.splice(i, 1)
             scene.remove(item)
             earned ++;
-            console.log(earned)
+            if(earned >= 10 && !window.gameend){
+                window.ending();;
+            }
         }
     }
     for(let i = powerball.length -1; i >= 0; i--){
@@ -1219,7 +1232,6 @@ function anim() {
         playerhud.healthup(0)
     }
 }
-
 if(!player.ishide && player.position.distanceTo(lastpos) > 2){
     staker.push(player.position.clone())
     lastpos.copy(player.position)
@@ -1262,6 +1274,10 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
         }
     }
     player.update(delta)
+    flashlight.position.copy(camera.position)
+    const dirca = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+    const targpos = camera.position.clone().add(dirca.multiplyScalar(20))
+    flashlight.target.position.lerp(targpos, 10 * delta)
 }
     comp.render()
 }
@@ -1298,10 +1314,78 @@ window.respawn = function(){
     const mobiel = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if(!mobiel){document.body.requestPointerLock()}
 }
+window.gameend = false;
+const personaud = new Audio('./audio/endvoi.mp3');
+
+window.ending = function(){
+    window.gameend = true;
+    window.pause = true;
+    document.exitPointerLock();
+    
+    document.getElementById('hud').style.display = 'none';
+    const pausemenu = document.getElementById('pausemenu');
+    if (pausemenu) pausemenu.remove()
+    
+    if(typeof listen !== 'undefined' && listen.context.state === 'running'){
+        listen.context.suspend();
+    }
+    if(typeof musicdayum !== 'undefined' && !musicdayum.paused) musicdayum.pause();
+    
+    const endscr = document.getElementById('endscr');
+    const virover = document.getElementById('virusove');
+    const callingcard = document.getElementById('callingcard');
+    const syscorrupt = document.getElementById('syscorrupt');
+    const endbtn = document.getElementById('endbtn');
+
+    const giveup = document.getElementById('giveup');
+    const selfdestruct = document.getElementById('selfdestruct');
+    const endvid = document.getElementById('reboovid');
+
+    if(endscr){
+        endscr.style.display = 'flex';
+        endscr.classList.remove('virus');
+    }
+    
+    if(virover) virover.style.opacity = '0';
+    if(callingcard) callingcard.style.display = 'flex';
+    if(syscorrupt) syscorrupt.style.display = 'none';
+    if(endbtn) endbtn.style.display = 'none';
+    
+    personaud.currentTime = 0;
+    personaud.play();
+    
+    setTimeout(() => {
+        if(virover) virover.style.opacity = '1';
+    }, 500);
+    
+    personaud.onended = function (){
+
+        if(endscr) endscr.classList.add('virus');
+        if(callingcard) callingcard.style.display = 'none';
+        if(syscorrupt) syscorrupt.style.display = 'block';
+        
+        setTimeout(() => {
+           if(endbtn) endbtn.style.display = 'flex';
+        }, 500);
+    };
+    if (giveup && selfdestruct) {
+        giveup.addEventListener('click', () => { window.location.reload(); });
+        selfdestruct.addEventListener('click', () => {
+            personaud.pause();
+            if(endscr) endscr.style.display = 'none';
+            if (endvid) {
+                endvid.style.display = 'block';
+                endvid.currentTime = 0;
+                endvid.play();
+            }
+        });
+    }
+};
 window.pausetog = function(ispause){
+    if(window.gameend) return;
     window.pause = ispause
     if(ispause){
-        if(typeof listen !== 'undefined' && listen.context.state !== 'running'){
+        if(typeof listen !== 'undefined' && listen.context.state === 'running'){
             listen.context.suspend()
         }
         if(typeof musicdayum !== 'undefined' && !musicdayum.paused) musicdayum.pause();
@@ -1309,7 +1393,7 @@ window.pausetog = function(ispause){
         if(typeof listen !== 'undefined' && listen.context.state === 'suspended'){
             listen.context.resume()
         }
-        if(typeof musicdayum !== 'undefined' && dayum) musicdayum.play();
+        if(typeof musicdayum !== 'undefined' && typeof dayum !== 'undefined' && dayum) musicdayum.play();
     }
 }
 anim()

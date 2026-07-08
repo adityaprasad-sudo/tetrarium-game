@@ -34,7 +34,6 @@ btnplay.addEventListener('click', () =>{
             const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
             if(mobile){
                 document.getElementById('mobile').style.display = 'block'
-                
             }else{
                 document.body.requestPointerLock()
             }
