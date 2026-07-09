@@ -348,9 +348,9 @@ class cronpc {
         if (this.currentaction) this.currentaction.play()
         
         this.walkspeed = 0.05
-        this.run = 0.18
+        this.run = 0.14
         this.radius = 10
-        this.attradi = 2
+        this.attradi = 3
         this.gravity = -0.05
         this.velocityy = 0
         this.died = false
@@ -719,23 +719,35 @@ const movy = Math.max(-maxdelta, Math.min(maxdelta, e.movementY))
                     touchx = movx
                     touchy = movy
             }, {passive: false})
+            const nob = document.getElementById('nob')
             let strmx ,strmy
             moveit.addEventListener('touchstart', (e) => {
                 strmx = e.targetTouches[0].clientX
                 strmy = e.targetTouches[0].clientY
+                if(nob) nob.style.transition = 'none'
             }, {passive: false})
             moveit.addEventListener('touchmove', (e) => {
                     e.preventDefault()
-                    const dx = e.targetTouches[0].clientX - strmx
-                    const dy = e.targetTouches[0].clientY - strmy
+                    let dx = e.targetTouches[0].clientX - strmx
+                    let dy = e.targetTouches[0].clientY - strmy
+                    const radii = 70
+                    const dis = Math.sqrt(dx * dx + dy * dy)
+                    if(dis> radii){
+                        dx = Math.cos(Math.atan2(dy, dx)) * radii
+                        dy = Math.sin(Math.atan2(dy, dx)) * radii
+                    }
+                    if(nob) nob.style.transform = `translate(${dx}px, ${dy}px)`
                     this.key.w = this.key.s = this.key.a = this.key.d = false
-                    if(dy < -25) this.key.w = true
-                    else if(dy > 25) this.key.s = true
-                    if(dx < -25) this.key.a = true
-                    else if(dx > 25) this.key.d = true
+                    if(dy < -15) this.key.w = true
+                    else if(dy > 15) this.key.s = true
+                    if(dx < -15) this.key.a = true
+                    else if(dx > 15) this.key.d = true
             }, {passive: false})
             moveit.addEventListener('touchend', (e) => {
                 this.key.w = this.key.s = this.key.a = this.key.d = false
+                if(nob) {nob.style.transition = 'transform 0.2s ease-out';
+                    nob.style.transform = 'translate(0px, 0px)';
+                }
             })
             sprint.addEventListener('touchstart', (e) => {
                 e.preventDefault()
@@ -1387,19 +1399,19 @@ window.pausetog = function(ispause){
         if(typeof musicdayum !== 'undefined' && typeof dayum !== 'undefined' && dayum) musicdayum.play();
     }
 }
-document.addEventListener('mousedown', (e) => {
-    if (document.pointerLockElement && window.hover) {
+function pic(){
+    if(!window.hover) return; 
         const item = window.hover;
         const type = window.hovertype;
         const handicon = document.getElementById('handicon');
         
 
-        function addToInv(itemName) {
+        function addToInv(name) {
             for (let i = 0; i < 3; i++) {
                 if (player.inventory[i] === null) {
-                    player.inventory[i] = itemName;
-                    document.getElementById('slot' + (i + 1)).innerText = itemName;
-                    return true;
+                    player.inventory[i] = name
+                    document.getElementById('slot' + (i + 1)).innerText = name;
+                    return true
                 }
             }
             return false; 
@@ -1407,20 +1419,20 @@ document.addEventListener('mousedown', (e) => {
 
         if (type === 'bottle') {
             if (addToInv('MEDS')) {
-                bottles.splice(bottles.indexOf(item), 1);
-                scene.remove(item);
+                bottles.splice(bottles.indexOf(item), 1)
+                scene.remove(item)
             }
         } 
         else if (type === 'choco') {
             if (addToInv('BATT')) {
-                choco.splice(choco.indexOf(item), 1);
-                scene.remove(item);
+                choco.splice(choco.indexOf(item), 1)
+                scene.remove(item)
             }
         } 
         else if (type === 'terra') {
-            terra.splice(terra.indexOf(item), 1);
-            scene.remove(item);
-            earned++;
+            terra.splice(terra.indexOf(item), 1)
+            scene.remove(item)
+            earned++
             if (earned >= 10 && typeof window.ending === 'function') window.ending();
         } 
         else if (type === 'powerball') {
@@ -1440,42 +1452,46 @@ document.addEventListener('mousedown', (e) => {
         
         window.hover= null;
         if (handicon) handicon.style.display = 'none';
+    
+}
+document.addEventListener('mousedown', (e) =>{
+    if(document.pointerLockElement && window.hover){
+        pic()
     }
-});
-
+})
+const iconpic = document.getElementById('handicon');
+if(iconpic){
+    iconpic.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        pic()
+    })
+}
 window.addEventListener('keydown', (e) => {
-    if (window.pause) return;
-
+if (window.pause) return;
     let indexuse = -1;
 
-
     if (['1', '2', '3'].includes(e.key)) {
-        indexuse = parseInt(e.key) - 1
-    } 
-
-    else if (e.key.toLowerCase() === 'q') {
-        indexuse = player.ativeslot
+        indexuse = parseInt(e.key) - 1;
+    } else if (e.key.toLowerCase() === 'q') {
+        indexuse = player.ativeslot;
     }
 
     if (indexuse !== -1) {
-        const itemName = player.inventory[indexuse]
-        
-        if (itemName === 'MEDS') {
-            playerhud.healthup(40)
-            player.inventory[indexuse] = null
-            document.getElementById('slot' + (indexuse + 1)).innerText = 'EMPTY'
-        } 
-        else if (itemName === 'BATT') {
-            playerhud.staminalevel = playerhud.maxstamia
-            player.stamina = player.maxstamina
-            player.inventory[indexuse] = null
-            document.getElementById('slot' + (indexuse + 1)).innerText = 'EMPTY'
+        const name = player.inventory[indexuse];
+        if (name === 'MEDS') {
+            playerhud.healthup(40);
+            player.inventory[indexuse] = null;
+            document.getElementById('slot' + (indexuse + 1)).innerText = 'EMPTY';
+        } else if (name === 'BATT') {
+            playerhud.staminalevel = playerhud.maxstamia;
+            player.stamina = player.maxstamina;
+            player.inventory[indexuse] = null;
+            document.getElementById('slot' + (indexuse + 1)).innerText = 'EMPTY';
         }
     }
 })
 window.addEventListener('wheel', (e) => {
     if(window.pause || !document.pointerLockElement) return;
-    
     document.getElementById('box' + (player.ativeslot + 1)).classList.remove('activeslot');
     
     if(e.deltaY > 0){
@@ -1484,12 +1500,34 @@ window.addEventListener('wheel', (e) => {
         player.ativeslot = (player.ativeslot - 1 + 3) % 3;
     }
     document.getElementById('box' + (player.ativeslot + 1)).classList.add('activeslot');
-})
+});
+for (let i = 0; i < 3; i++) {
+    const box = document.getElementById('box' + (i + 1));
+    if (box) {
+        box.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (window.pause) return;
+
+            if (player.ativeslot === i) {
+                const name = player.inventory[i];
+                if (name === 'MEDS') {
+                    playerhud.healthup(40);
+                    player.inventory[i] = null;
+                    document.getElementById('slot' + (i + 1)).innerText = 'EMPTY';
+                } 
+                else if (name === 'BATT') {
+                    playerhud.staminalevel = playerhud.maxstamia;
+                    player.stamina = player.maxstamina;
+                    player.inventory[i] = null;
+                    document.getElementById('slot' + (i + 1)).innerText = 'EMPTY';
+                }
+            } 
+            else {
+                document.getElementById('box' + (player.ativeslot + 1)).classList.remove('activeslot');
+                player.ativeslot = i;
+                document.getElementById('box' + (player.ativeslot + 1)).classList.add('activeslot');
+            }
+        });
+    }
+}
 anim()
-
-
-
-
-
-
-

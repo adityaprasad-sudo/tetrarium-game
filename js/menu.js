@@ -40,8 +40,8 @@ btnplay.addEventListener('click', () =>{
             if(typeof window.startgame === 'function') window.startgame()
         }
     window.addEventListener('keydown', startgm)
-    window.addEventListener('touchstart', startgm)
-    window.addEventListener('touchmove', startgm)
+    window.addEventListener('touchstart', startgm, { passive: false })
+        window.addEventListener('touchmove', startgm, { passive: false })
         }, 5000)
 })
 about.addEventListener('click', () => {
