@@ -22,6 +22,7 @@ class floatingshit{
                                 this.targroty = 0
                                 this.health = 100
                                 this.maxstamia =200
+                                
                                 this.maxheath = 100
                                 this.staminalevel = 200
                                 this.init()
@@ -39,8 +40,8 @@ class floatingshit{
                                         this.healthpan.classList.add('critical')
                                         this.healthpan.classList.add('glitchy')
                                         this.healthstat.innerText = 'STATUS: Critical Failure'
-                                        healwarn2.play()
-                                        healwarn.play()
+                                        if (!healwarn2.isPlaying) healwarn2.play();
+                                        if (!healwarn.isPlaying) healwarn.play();
                                         if(this.glass){
                                             this.glass.style.display = 'block'
                                             this.glass.style.opacity = '1'
@@ -49,8 +50,8 @@ class floatingshit{
                                         this.healthpan.classList.remove('critical')
                                         this.healthpan.classList.add('glitchy')
                                         this.healthstat.innerText = 'STATUS: Compromised'
-                                        healwarn2.pause()
-                                        healwarn.pause()
+                                        if (healwarn2.isPlaying) healwarn2.pause();
+                                        if (healwarn.isPlaying) healwarn.pause();
                                         if(this.glass){
                                             this.glass.style.display = 'block'
                                             this.glass.style.opacity = '0.2'
@@ -59,8 +60,8 @@ class floatingshit{
                                         this.healthpan.classList.remove('critical')
                                         this.healthpan.classList.remove('glitchy')
                                         this.healthstat.innerText = 'STATUS: Normal'
-                                        healwarn2.pause()
-                                        healwarn.pause()
+                                        if (healwarn2.isPlaying) healwarn2.pause();
+                                        if (healwarn.isPlaying) healwarn.pause();
                                         if(this.glass){
                                             this.glass.style.display = 'none'
                                         }
@@ -71,9 +72,9 @@ class floatingshit{
             this.staminalevel = this.maxstamia;
         }
                             if(this.staminalevel <= 0){
-    stawarn.play()
+    if (!stawarn.isPlaying) stawarn.play();
 }else{
-    stawarn.pause()
+    if (stawarn.isPlaying) stawarn.pause();
 }
                             
                                 if(sprint && ismove && this.staminalevel > 0 && !player.ishide ){
@@ -354,6 +355,10 @@ class cronpc {
         this.velocityy = 0
         this.died = false
         this.dietime = 2.5
+        this.muff = listen.context.createBiquadFilter()
+       this.muff.type = 'lowpass'
+         this.muff.frequency.value = 22000
+        this.appfilter = false
     }
     getanim(name) {
         return this.animations.find(a => a.name.toLowerCase().includes(name.toLowerCase())) || this.animations[0]
@@ -471,6 +476,20 @@ class cronpc {
             this.dumb(runcun, trag, true)
             return "alive"
         }
+        const chestdis = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 1, this.mesh.position.z)
+        const heasd = new THREE.Vector3(pos.x, pos.y, pos.z)
+        const distopla = new THREE.Vector3().subVectors(heasd, chestdis).normalize()
+        const truedis = chestdis.distanceTo(heasd)
+        const soundray = new THREE.Raycaster(chestdis, distopla, 0 , truedis)
+        const walls = soundray.intersectObjects(collide, true)
+        const targfrq = walls.length > 0 ? 400 : 22000;
+        this.muff.frequency.value += (targfrq - this.muff.frequency.value) * 0.1
+        if(!this.appfilter && this.growl && this.runaud){
+            this.growl.setFilter(this.muff)
+            this.runaud.setFilter(this.muff)
+            if(this.ideal) this.ideal.setFilter(this.muff);
+            this.appfilter = true
+        }
         if (!dayum && this.currentstatee === 'flee') {
         if(this.runaud) safety(this.runaud)
         this.changestate('idle', 'idle')
@@ -567,6 +586,7 @@ class cronpc {
             this.mesh.rotateY((Math.PI/2) + (Math.random() * 0.5))
         }
 }
+
 }
 function echo(audio){
     audio.currentTime = 0
@@ -588,12 +608,13 @@ let earned = 0
 const footsteps2 = new Audio('./audio/walk2.mp3')
 const footsteps = new Audio('./audio/walk.mp3')
 const player = {
-    
+    ativeslot: 0,
     position: new THREE.Vector3(0, 1.6, 0),
     velocity: new THREE.Vector3(0, 0, 0),
     yaw: 0,
     pitch: 0,
     speed: 0.15,
+    inventory : [null, null, null],
     walkspeed: 0.1,
     sprintspeed: 0.17,
     cooldown: 0,
@@ -1147,61 +1168,31 @@ function anim() {
     playerhud.y *= 0.9
     playerhud.floatphy(delta)
     playerhud.stamina(delta, player.key.shift, ismove)
-    for(let i = terra.length -1; i >= 0; i--){
-        let item = terra[i]
-        const dx = player.position.x - item.position.x
-        const dz = player.position.z - item.position.z
-        const horidis = Math.sqrt(dx * dx + dz * dz)
-        if(horidis < 2.5){
-            terra.splice(i, 1)
-            scene.remove(item)
-            earned ++;
-            if(earned >= 10 && !window.gameend){
-                window.ending();;
-            }
+    const pickray = new THREE.Raycaster()
+    pickray.setFromCamera(new THREE.Vector2(0,0), camera)
+    const all = [...terra, ...bottles, ...powerball, ...choco]
+    const intersectpick = pickray.intersectObjects(all, true)
+    window.hover = null;
+    window.hovertype = null
+    const handicon = document.getElementById('handicon')
+    if(intersectpick.length > 0 && intersectpick[0].distance < 5){
+        let hitobj = intersectpick[0].object
+        while(hitobj && !all.includes(hitobj)){
+            hitobj = hitobj.parent
         }
-    }
-    for(let i = powerball.length -1; i >= 0; i--){
-        let item = powerball[i]
-        const dx = player.position.x - item.position.x
-        const dz = player.position.z - item.position.z
-        const horidis = Math.sqrt(dx * dx + dz * dz)
-        
-        if(horidis < 2.5){
-            dayum = true
-            timer = 53
-            ui.style.display = 'block'
-            powerball.splice(i, 1)
-            scene.remove(item)
-            musicdayum.currentTime = 0;
-            musicdayum.play()
+        if(hitobj){
+            window.hover = hitobj
+            if (terra.includes(hitobj)) window.hovertype = 'terra';
+            if (bottles.includes(hitobj)) window.hovertype = 'bottle';
+            if (choco.includes(hitobj)) window.hovertype = 'choco';
+            if (powerball.includes(hitobj)) window.hovertype = 'powerball';
+            if(handicon) handicon.style.display = 'block'
+        }else{
+            if(handicon) handicon.style.display = 'none'
         }
-    }
-    for(let i = bottles.length -1; i >= 0; i--){
-        let item = bottles[i]
-        const dx = player.position.x - item.position.x
-        const dz = player.position.z - item.position.z
-        const horidis = Math.sqrt(dx * dx + dz * dz)
-        
-        if(horidis < 2.5){
-            bottles.splice(i, 1)
-            scene.remove(item)
-            playerhud.healthup(25)
-        }
-    }
-    for(let i = choco.length -1; i >= 0; i--){
-        let item = choco[i]
-        const dx = player.position.x - item.position.x
-        const dz = player.position.z - item.position.z
-        const horidis = Math.sqrt(dx * dx + dz * dz)
-        
-        if(horidis < 2.5){
-            choco.splice(i, 1)
-            scene.remove(item)
-            playerhud.staminalevel = 200
-            player.stamina = 200 
-        }
-    }
+    }else{
+            if(handicon) handicon.style.display = 'none'
+}
     if(dayum){
     timer -= delta
     const chars = "!<>-_\\\\/[]{}—=+*^?#________"
@@ -1396,4 +1387,109 @@ window.pausetog = function(ispause){
         if(typeof musicdayum !== 'undefined' && typeof dayum !== 'undefined' && dayum) musicdayum.play();
     }
 }
+document.addEventListener('mousedown', (e) => {
+    if (document.pointerLockElement && window.hover) {
+        const item = window.hover;
+        const type = window.hovertype;
+        const handicon = document.getElementById('handicon');
+        
+
+        function addToInv(itemName) {
+            for (let i = 0; i < 3; i++) {
+                if (player.inventory[i] === null) {
+                    player.inventory[i] = itemName;
+                    document.getElementById('slot' + (i + 1)).innerText = itemName;
+                    return true;
+                }
+            }
+            return false; 
+        }
+
+        if (type === 'bottle') {
+            if (addToInv('MEDS')) {
+                bottles.splice(bottles.indexOf(item), 1);
+                scene.remove(item);
+            }
+        } 
+        else if (type === 'choco') {
+            if (addToInv('BATT')) {
+                choco.splice(choco.indexOf(item), 1);
+                scene.remove(item);
+            }
+        } 
+        else if (type === 'terra') {
+            terra.splice(terra.indexOf(item), 1);
+            scene.remove(item);
+            earned++;
+            if (earned >= 10 && typeof window.ending === 'function') window.ending();
+        } 
+        else if (type === 'powerball') {
+
+            powerball.splice(powerball.indexOf(item), 1);
+            scene.remove(item);
+            if (typeof dayum !== 'undefined') {
+                dayum = true;
+                timer = 53;
+                document.getElementById('timothy').style.display = 'block';
+                if (typeof musicdayum !== 'undefined') {
+                    musicdayum.currentTime = 0;
+                    musicdayum.play();
+                }
+            }
+        }
+        
+        window.hover= null;
+        if (handicon) handicon.style.display = 'none';
+    }
+});
+
+window.addEventListener('keydown', (e) => {
+    if (window.pause) return;
+
+    let indexuse = -1;
+
+
+    if (['1', '2', '3'].includes(e.key)) {
+        indexuse = parseInt(e.key) - 1
+    } 
+
+    else if (e.key.toLowerCase() === 'q') {
+        indexuse = player.ativeslot
+    }
+
+    if (indexuse !== -1) {
+        const itemName = player.inventory[indexuse]
+        
+        if (itemName === 'MEDS') {
+            playerhud.healthup(40)
+            player.inventory[indexuse] = null
+            document.getElementById('slot' + (indexuse + 1)).innerText = 'EMPTY'
+        } 
+        else if (itemName === 'BATT') {
+            playerhud.staminalevel = playerhud.maxstamia
+            player.stamina = player.maxstamina
+            player.inventory[indexuse] = null
+            document.getElementById('slot' + (indexuse + 1)).innerText = 'EMPTY'
+        }
+    }
+})
+window.addEventListener('wheel', (e) => {
+    if(window.pause || !document.pointerLockElement) return;
+    
+    document.getElementById('box' + (player.ativeslot + 1)).classList.remove('activeslot');
+    
+    if(e.deltaY > 0){
+        player.ativeslot = (player.ativeslot + 1) % 3;
+    } else {
+        player.ativeslot = (player.ativeslot - 1 + 3) % 3;
+    }
+    document.getElementById('box' + (player.ativeslot + 1)).classList.add('activeslot');
+})
 anim()
+
+
+
+
+
+
+
