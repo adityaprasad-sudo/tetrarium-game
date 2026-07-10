@@ -365,22 +365,29 @@ class cronpc {
     }
     changestate(newstate, actionName) {
         if (this.currentstatee === newstate || !this.actions[actionName]) return;
+        const aggro = () => {
+            let chigga = false
+            if (typeof crocnpc !== 'undefined' && crocnpc && crocnpc !== this && (crocnpc.currentstatee === 'chase' || crocnpc.currentstatee === 'attack')) chigga = true;
+            if (typeof gorilla !== 'undefined' && gorilla && gorilla !== this && (gorilla.currentstatee === 'chase' || gorilla.currentstatee === 'attack')) chigga = true;
+            if (typeof clark !== 'undefined' && clark && clark !== this && (clark.currentstatee === 'chase' || clark.currentstatee === 'attack')) chigga = true;
+            return chigga;
+        }
         if (newstate === 'chase' || newstate === 'attack') {
             if (this.currentstatee !== 'chase' && this.currentstatee !== 'attack') {
-                fade(chasemu, 0.6, 0.5, false);
+                if(!aggro()) fade(chasemu, 0.6, 0.5, false);
                 if (this.growl && !this.growl.isPlaying) this.growl.play();
                 if (this.ideal) safety(this.ideal);
             }
         }
         if (newstate === 'patrol' || newstate === 'idle') {
-            fade(chasemu, 0, 2.5, false);
+            if(!aggro()) fade(chasemu, 0, 2.5, false);
             if (this.growl) safety(this.growl);
             if (this.runaud) safety(this.runaud); 
             if (newstate === 'patrol' && this.ideal && !this.ideal.isPlaying) this.ideal.play();
         }
 
         if (newstate === 'flee') {
-            fade(chasemu, 0, 2.5, true);
+            if(!aggro())fade(chasemu, 0, 2.5, true);
             if (this.growl) safety(this.growl);
             if (this.ideal) safety(this.ideal);
             if (this.runaud && !this.runaud.isPlaying) this.runaud.play();
@@ -1251,9 +1258,7 @@ if(!player.ishide && player.position.distanceTo(lastpos) > 2){
             
             if (typeof crocgrowl !== 'undefined') safety(crocgrowl)
             
-            if (typeof chasemu !== 'undefined') {
-                fade(chasemu, 0, 1.5, false);
-            }
+            
         }
     }
     if(gorilla){
